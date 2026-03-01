@@ -1,0 +1,19 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="requests" />
+          <option value="certifi" />
+          <option value="urllib3" />
+          <option value="beautifulsoup4" />
+          <option value="openai" />
+          <option value="python-dotenv" />
+          <option value="rapidfuzz" />
+          <option value="temporalio" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
