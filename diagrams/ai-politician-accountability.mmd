@@ -1,0 +1,42 @@
+graph LR
+    %% ================================================================
+    %% SUPERVISOR DELEGATION MODEL - Multi-Agent Legislation Research
+    %% ================================================================
+
+    START[User Trigger] --> SUPERVISOR
+
+    %% SUPERVISOR
+    SUPERVISOR[Supervisor Agent]
+
+    %% AGENTS
+    SUPERVISOR -->|delegate| AGENT1[Agent 1: Legislation Finder]
+    SUPERVISOR -->|delegate| AGENT2[Agent 2: Scraper Builder]
+    SUPERVISOR -->|delegate| AGENT3[Agent 3: Research Writer]
+
+    %% AGENT 1 TOOLS
+    AGENT1 --> AGENT1_TOOLS[Tools: Web Search, URL Fetcher, HTML Parser]
+
+    %% AGENT 2 TOOLS
+    AGENT2 --> AGENT2_TOOLS[Tools: Code Generator, Python REPL, Date Filter]
+
+    %% AGENT 3 TOOLS
+    AGENT3 --> AGENT3_TOOLS[Tools: Note Composer, Vector DB Writer]
+
+    %% VECTOR DB SIDE EFFECT
+    AGENT3_TOOLS -->|publish embeddings| VECTOR_DB[(Vector Knowledge DB)]
+
+    %% OUTPUT TO PRESENTATION LLM
+    SUPERVISOR -->|raw research notes| PRESENTATION_LLM[Presentation LLM - NOT an agent]
+    PRESENTATION_LLM --> OUTPUT[Final Output]
+
+    %% RAG CHATBOT
+    VECTOR_DB -.->|retrieval| RAG_CHATBOT[RAG Chatbot]
+
+    %% ================================================================
+    %% NOTES
+    %% ================================================================
+    %% Agent 1: Finds legislation links, learns site structure
+    %% Agent 2: Generates scraper code, runs via REPL, filters by date (last 7 days)
+    %% Agent 3: Writes research notes, publishes to vector DB
+    %% Presentation LLM: Condenses notes (single LLM call, no autonomy)
+    %% RAG Chatbot: Downstream consumer of vector DB
