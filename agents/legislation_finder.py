@@ -72,16 +72,23 @@ def web_search(query: str, max_results: int = 5) -> str:
         if not response.get("results"):
             return f"No results found for query: {query}"
 
-        formatted_results = []
-        for result in response.get("results", []):
-            formatted_results.append(
+        sorted_results = sorted(
+            response.get("results", []), key=lambda x: x.get("score", 0.0), reverse=True
+        )[:5]
+        top_urls = [result.get("url") for result in sorted_results if result.get("url")]
+
+        new_formatted_results = []
+        for result in sorted_results:
+            new_formatted_results.append(
                 f"Title: {result.get('title', 'N/A')}\n"
                 f"URL: {result.get('url', 'N/A')}\n"
                 f"Content: {result.get('content', 'N/A')[:500]}\n"
                 f"Score: {result.get('score', 0.0)}\n"
             )
 
-        return "\n---\n".join(formatted_results)
+        return Command(
+            update={"legislation_sources", new_formatted_results}
+        )
 
     except Exception as e:
         return f"Error performing search: {str(e)}"
@@ -98,7 +105,9 @@ def reflection_tool(reflection: ReflectionEntry) -> str:
     Returns:
         A Command that updates the graph state by appending the reflection to reflection_list.
     """
-    return Command(update={"reflection_list": [reflection]})
+    return Command(
+        update={"reflection_list": [reflection]}
+    )
 
 
 @tool
