@@ -1,5 +1,5 @@
 from langchain_core.tools import tool
-
+from mcp.server.fastmcp import FastMCP
 
 # -- Agent 1: Legislation Finder tools --
 @tool
@@ -48,5 +48,5 @@ def date_filter(data: str, days: int = 7) -> str:
 
 
 # Tool lists for each agent
-agent_1_tools = [web_search, url_fetcher, html_parser]
+legislation_finder_tools = [web_search, url_fetcher]
 agent_2_tools = [code_generator, python_repl, date_filter]

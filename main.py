@@ -23,7 +23,6 @@ def run_agent_2(state: MessagesState) -> MessagesState:
     return {"messages": result["messages"]}
 
 
-# Build the linear chain: START -> agent_1 -> agent_2 -> END
 graph_builder = StateGraph(MessagesState)
 graph_builder.add_node("legislation_finder", run_agent_1)
 graph_builder.add_node("scraper_builder", run_agent_2)
