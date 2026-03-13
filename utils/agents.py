@@ -9,6 +9,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 
 from utils.models import ReflectionEntry
+from utils.tools import reflection_tool
 
 StateType = TypeVar("StateType")
 
@@ -49,7 +50,8 @@ class BaseReActAgent:
         timeout: int = 30,
     ):
         self.state_schema = state_schema
-        self.tools = tools
+        # Always include reflection_tool by default
+        self.tools = [reflection_tool] + tools
         self.system_prompt = system_prompt
 
         self.model = ChatOpenAI(

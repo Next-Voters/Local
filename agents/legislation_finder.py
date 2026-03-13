@@ -6,7 +6,7 @@ import operator
 
 from utils.agents import BaseAgentState, BaseReActAgent
 from utils.prompts import legislation_finder_sys_prompt
-from tools.legislation_finder import web_search, reflection_tool, reliability_analysis
+from tools.legislation_finder import web_search, reliability_analysis
 
 
 # === STATE DEFINITION ===
@@ -24,7 +24,7 @@ class LegislationFinderState(BaseAgentState):
 
 _agent = BaseReActAgent(
     state_schema=LegislationFinderState,
-    tools=[web_search, reflection_tool, reliability_analysis],
+    tools=[web_search, reliability_analysis],
     system_prompt=lambda state: legislation_finder_sys_prompt.format(
         input_city=state.get("city", "Unknown"),
         last_week_date=(datetime.today() - timedelta(days=7)).strftime("%B %d"),

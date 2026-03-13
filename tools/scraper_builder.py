@@ -7,12 +7,12 @@ All tools return Command objects to update LangGraph state.
 
 from langchain_core.tools import tool
 from langgraph.prebuilt.tool_node import InjectedState
+
 from langgraph.types import Command
 
 @tool
 def code_generator(
-    urls: list[str],
-    bill_metadata: dict,
+    final_legislation_sources: Annotated[list[BaseMessage], InjectedState("final_legislation_sources")],
 ) -> Command:
     """Generate Python scraping code based on URLs and bill metadata.
 
@@ -27,7 +27,7 @@ def code_generator(
     Returns:
         A Command that updates the graph state with generated_scraper_code.
     """
-    pass
+
 
 
 @tool
