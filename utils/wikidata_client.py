@@ -19,7 +19,10 @@ import httpx
 
 WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php"
 WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
-HEADERS = {"Accept": "application/json", "User-Agent": "NextVotersLocal/1.0"}
+HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "NextVotersLocal/1.0 (https://github.com/next-voters-local; contact@nextvoters.local) httpx/0.27",
+}
 
 
 def search_entity(query: str) -> str | None:

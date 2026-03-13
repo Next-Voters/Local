@@ -1,5 +1,7 @@
 import os
+import json
 import operator
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from typing import TypedDict, Annotated, NotRequired
@@ -10,17 +12,23 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from tavily import TavilyClient
 
-from utils.prompts import legislation_finder_sys_prompt
+from utils.prompts import (
+    legislation_finder_sys_prompt,
+    reliability_org_extraction_prompt,
+    reliability_judgment_prompt,
+    reflection_prompt,
+)
+from utils.wikidata_client import search_entity, get_org_classification
 
 load_dotenv()
 
 model = ChatOpenAI(model="gpt-4o", temperature=0.0, max_tokens=2000, timeout=30)
 tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-
 
 class ReflectionEntry(BaseModel):
     """State for all reflection that agent conducts"""
@@ -36,6 +44,7 @@ class ReflectionEntry(BaseModel):
         description="Specific action planned for the next iteration (e.g., search query, tool to use)"
     )
 
+
 class IndividualReliabilityAnalysis(BaseModel):
     """State for all individual reliability analysis"""
 
@@ -45,6 +54,7 @@ class IndividualReliabilityAnalysis(BaseModel):
     rationale: str = Field(
         description="Explain your choice for the scoring in 250 characters or less"
     )
+
 
 class LegislationFinderState(TypedDict):
     """State for the legislation finder agent."""
@@ -56,71 +66,10 @@ class LegislationFinderState(TypedDict):
     raw_legislation_sources: NotRequired[Annotated[list[str], operator.add]]
     reliable_legislation_sources: NotRequired[Annotated[list[str], operator.add]]
 
+class LegislationJudgement(BaseModel):
+    pass
 
 # === TOOLS ===
-@tool
-def web_search(query: str, max_results: int = 5) -> str:
-    """Search the web for legislation related to a specific municipality or topic.
-
-    Uses the Tavily search API to find recent, relevant legislation pages.
-
-    Args:
-        query: The search query — e.g. "recent Brampton city council bylaws 2026".
-        max_results: Maximum number of results to return (default 5).
-
-    Returns:
-        A formatted string with search results including titles, URLs, and content snippets.
-    """
-    try:
-        response = tavily_client.search(
-            query=query,
-            max_results=max_results,
-            search_depth="advanced",
-            include_answer=False,
-            include_raw_content=True,
-        )
-
-        if not response.get("results"):
-            return f"No results found for query: {query}"
-
-        sorted_results = sorted(
-            response.get("results", []), key=lambda x: x.get("score", 0.0), reverse=True
-        )[:5]
-        top_urls = [result.get("url") for result in sorted_results if result.get("url")]
-
-        new_formatted_results = []
-        for result in sorted_results:
-            new_formatted_results.append(
-                f"Title: {result.get('title', 'N/A')}\n"
-                f"URL: {result.get('url', 'N/A')}\n"
-                f"Content: {result.get('content', 'N/A')[:500]}\n"
-                f"Score: {result.get('score', 0.0)}\n"
-            )
-
-        return Command(update={"raw_legislation_sources", new_formatted_results})
-
-    except Exception as e:
-        return f"Error performing search: {str(e)}"
-
-
-@tool
-def reflection_tool(reflection: ReflectionEntry) -> str:
-    """Generate a reflection on the current progress and next steps.
-
-    Args:
-        reflection: A structured ReflectionEntry containing the agent's reflection,
-            identified gaps, planned next action, and confidence score.
-
-    Returns:
-        A Command that updates the graph state by appending the reflection to reflection_list.
-    """
-    return Command(update={"reflection_list": [reflection]})
-
-
-@tool
-def reliability_analysis(analyses: list[IndividualReliabilityAnalysis]):
-    return f"Reliability analysis: {analyses}"
-
 
 tools = [web_search, reflection_tool, reliability_analysis]
 tool_lookup = {tool.name: tool for tool in tools}
@@ -148,6 +97,7 @@ def call_model(state: LegislationFinderState) -> LegislationFinderState:
             f"{r.reflection}"
             f"\n  Findings: {', '.join(r.key_findings) or 'None'}"
             f"\n  Gaps: {', '.join(r.gaps_identified) or 'None'}"
+            f"\n Next Actions/Tool Calls: {', '.join(r.next_actions) or 'None yet'}"
             for r in reflection_list
         ]
     )

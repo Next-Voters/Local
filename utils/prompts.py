@@ -64,3 +64,73 @@ OUTPUT FORMAT:
 
 When in doubt, cut it out.
 """
+
+reliability_org_extraction_prompt = """You are an expert at identifying the TRUE parent organization behind a URL.
+
+Given a list of raw source URLs and titles from web search results, extract the REAL organization that operates each source.
+
+CRITICAL RULES:
+- Extract the PARENT ORGANIZATION, not the product name.
+  - YouTube → Alphabet Inc. (NOT "YouTube")
+  - Instagram → Meta Platforms (NOT "Instagram")
+  - NBC News → NBCUniversal / Comcast (NOT "NBC News")
+  - A city .gov site → The actual city government (e.g., "City of Austin")
+- For government websites, identify the specific government body (e.g., "City of Austin", "Texas Legislature", "U.S. Congress").
+- For news outlets, identify the parent media company.
+- For think tanks and nonprofits, use their official registered name.
+- If you genuinely cannot determine the organization, return "Unknown".
+- When in doubt, never GUESS. 
+
+Return a JSON list where each item has:
+- "url": the source URL
+- "organization": the parent organization name (suitable for a Wikidata search)
+
+Sources to analyze:
+{sources}
+"""
+
+reliability_judgment_prompt = """You are a source reliability analyst for a civic legislation research system.
+
+For each source, you have been given:
+1. The source URL and title
+2. The organization behind the source (extracted by a prior step)
+3. Wikidata classification data for that organization (type, country, parent org, description)
+
+Your job: classify each source's reliability for CIVIC LEGISLATION research using this 4-tier system:
+
+TIER 1 — highly_reliable:
+- Official government bodies (city councils, state legislatures, federal agencies)
+- Official legislative databases (Legistar, eScribe, Granicus)
+- Municipal .gov websites with direct legislation text
+
+TIER 2 — conditionally_reliable:
+- Established news organizations reporting facts (not editorials)
+- University or academic institutions
+- Nonpartisan research organizations
+
+TIER 3 — unreliable:
+- Advocacy organizations, think tanks with known political leaning
+- Opinion/editorial content from any source
+- Social media, blogs, partisan media
+- Organizations where Wikidata lists a political ideology
+
+TIER 4 — unknown:
+- Organization not found on Wikidata AND not clearly a government source
+- Insufficient data to make a judgment
+
+RULES:
+- If Wikidata shows the org is a "government agency", "municipality", "city council", or similar → highly_reliable
+- If Wikidata shows a political ideology or the org is classified as a "think tank" or "advocacy group" → unreliable
+- Only highly_reliable and conditionally_reliable sources should be accepted
+- Be concise in your rationale (under 200 characters)
+
+Return a JSON list where each item has:
+- "url": the source URL
+- "organization": the organization name
+- "tier": one of "highly_reliable", "conditionally_reliable", "unreliable", "unknown"
+- "rationale": brief explanation
+- "accepted": true/false (true only for highly_reliable or conditionally_reliable)
+
+Sources with Wikidata context:
+{sources_with_context}
+"""
