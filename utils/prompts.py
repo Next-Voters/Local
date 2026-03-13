@@ -109,6 +109,7 @@ TIER 2 — conditionally_reliable:
 - Nonpartisan research organizations
 
 TIER 3 — unreliable:
+Any organization that has paristian ties or can be biased AT ALL
 - Advocacy organizations, think tanks with known political leaning
 - Opinion/editorial content from any source
 - Social media, blogs, partisan media
