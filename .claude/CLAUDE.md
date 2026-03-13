@@ -14,7 +14,7 @@
 - **Rhetoric Neutralizer must never guess politician identity.** Hard constraint — anonymization happens upstream via the Redactor before the Neutralizer ever receives input.
 - **Always use `model=` parameter (not `llm=`)** when calling `create_react_agent` in the current LangGraph version (1.0.10).
 - **Never use `langgraph-supervisor`** — it has been removed from requirements and is not part of this architecture.
-
+- **Never waste time praising me for good actions or trying to inflate my ego. Stay true to simply helping me engineer a world-class systems.**
 ---
 
 ## 🎯 PROJECT CONTEXT
