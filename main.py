@@ -27,8 +27,8 @@ class ChainData(TypedDict):
 def run_legislation_finder(inputs: ChainData) -> ChainData:
     """Run the legislation finder agent as a node."""
     city = inputs.get("city", "Unknown")
-    agent_result = legislation_finder_agent.invoke({"messages": [], "city": city})
-    legislation_sources = agent_result.get("messages", [])
+    agent_result = legislation_finder_agent.invoke({"city": city})
+    legislation_sources = agent_result.get("reliable_legislation_sources", [])
     return {"legislation_sources": legislation_sources}
 
 
