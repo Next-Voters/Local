@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from agents.legislation_finder import legislation_finder_agent
 from utils.models import WriterOutput
 from utils.typed_dicts import ChainData
-from utils.prompts import writer_sys_prompt
+from utils.prompts import writer_sys_prompt, note_taker_sys_prompt
 
 load_dotenv()
 
@@ -41,12 +41,17 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
     return {"legislation_content": legislation_content}
 
 def research_note_taker(inputs: ChainData) -> ChainData:
-    notes = inputs.get("notes")
-    system_prompt = writer_sys_prompt.format(notes=notes)
+    raw_content_list = inputs.get("legislation_content")
+    raw_content = None
+
+    for content in raw_content_list:
+        raw_content.append(content + "\n")
+
+    system_prompt = note_taker_sys_prompt.format(raw_content=raw_content)
 
     # Applying context compaction to ensure context window for LLM remains within bounds of good performance
     ai_generated_notes = model.invoke(
-        [{"role": "system", "content": system_prompt}] + ([notes] if notes else []),
+        [{"role": "system", "content": system_prompt}],
     )
 
     return {"notes": str(ai_generated_notes.content)}
@@ -59,7 +64,7 @@ def research_summary_writer(inputs: ChainData) -> ChainData:
     structured_model = model.with_structured_output(WriterOutput)
 
     ai_generated_summary: WriterOutput = structured_model.invoke(
-        [{"role": "system", "content": system_prompt}] + ([notes] if notes else []),
+        [{"role": "system", "content": system_prompt}],
     )
 
     return {"legislation_summary": ai_generated_summary}
