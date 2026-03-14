@@ -1,10 +1,8 @@
 import httpx
 from dotenv import load_dotenv
 from typing import TypedDict, NotRequired
-from pydantic import BaseModel, Field
 
-from langchain_core.messages import BaseMessage
-from langgraph.graph import StateGraph, START, END
+from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
 from agents.legislation_finder import legislation_finder_agent
@@ -20,77 +18,67 @@ class LegislationContent(TypedDict):
     content: str
     error: NotRequired[str]
 
-class AgentOrchestrationState(TypedDict):
-    """State for the agent orchestration graph."""
+class ChainData(TypedDict):
     city: NotRequired[str]
+    legislation_sources: NotRequired[str]
+    legislation_content: NotRequired[list[LegislationContent]]
+    final_output: NotRequired[WriterOutput]
 
-    legislation_sources: NotRequired[list[str]]
-    legislation_sources_content: NotRequired[list[LegislationContent]]
-
-    final_output: NotRequired[list[WriterOutput]]
-
-def run_legislation_finder(state: AgentOrchestrationState) -> AgentOrchestrationState:
-    """Run the legislation finder agent as a subgraph node."""
-    city = state.get("city", "Unknown")
+def run_legislation_finder(inputs: ChainData) -> ChainData:
+    """Run the legislation finder agent as a node."""
+    city = inputs.get("city", "Unknown")
     agent_result = legislation_finder_agent.invoke({"messages": [], "city": city})
     legislation_sources = agent_result.get("messages", [])
     return {"legislation_sources": legislation_sources}
 
 
-def run_content_retrieval(state: AgentOrchestrationState) -> AgentOrchestrationState:
-    legislation_sources_content = []
+def run_content_retrieval(inputs: ChainData) -> ChainData:
+    """Fetch content from legislation sources."""
+    legislation_sources = inputs.get("legislation_sources", [])
+    legislation_content = []
 
-    for source in state.get("legislation_sources", []):
+    for source in legislation_sources:
         try:
             markdown_url = f"https://markdown.new/{source}"
             response = httpx.get(markdown_url, timeout=30, follow_redirects=True)
             response.raise_for_status()
-            legislation_sources_content.append({
-                "source": source,
-                "content": response.text
-            })
+            legislation_content.append(
+                {"source": source, "content": response.text}
+            )
         except httpx.HTTPError as e:
-            legislation_sources_content.append({
-                "source": source,
-                "content": None,
-                "error": str(e)
-            })
+            legislation_content.append(
+                {"source": source, "content": None, "error": str(e)}
+            )
 
-    return {"legislation_sources_content": legislation_sources_content}
+    return {"legislation_content": legislation_content}
 
-def writer(state: AgentOrchestrationState) -> AgentOrchestrationState:
-    notes = state.get("agent_conversation", [])[-1]
+def writer(inputs: ChainData) -> ChainData:
+    """Generate final output using LLM with structured output."""
+    agent_conversation = inputs.get("legislation_content", [])
+    notes = agent_conversation[-1] if agent_conversation else None
     system_prompt = writer_sys_prompt.format("")
 
     structured_model = model.with_structured_output(WriterOutput)
 
     response: WriterOutput = structured_model.invoke(
-        [{"role": "system", "content": system_prompt}] + notes,
+        [{"role": "system", "content": system_prompt}] + ([notes] if notes else []),
     )
 
     return {"final_output": response}
 
-graph_builder = StateGraph(AgentOrchestrationState)
-graph_builder.add_node("legislation_finder", run_legislation_finder)
-graph_builder.add_node("content_retrieval", run_content_retrieval)
-graph_builder.add_node("writer", writer)
 
-graph_builder.add_edge(START, "legislation_finder")
-graph_builder.add_edge("legislation_finder", "content_retrieval")
-graph_builder.add_edge("content_retrieval", "writer")
-graph_builder.add_edge("writer", END)
+chain = (
+    RunnableLambda(run_legislation_finder)
+    | RunnableLambda(run_content_retrieval)
+    | RunnableLambda(writer)
+)
 
-graph = graph_builder.compile()
 
 if __name__ == "__main__":
     city = str(input("What city would you like to find legislation in? "))
 
-    result = graph.invoke(
-        {
-            "city": city,
-        }
-    )
+    result = chain.invoke({"city": city})
 
-    print("\n=== Legislation Finder Results ===\n")
+    print("\n=== NV Local Results ===\n")
     agent_output = result.get("final_output") if result.get("final_output") else None
     print(agent_output)
