@@ -1,0 +1,7 @@
+langgraph
+langchain-openai
+python-dotenv
+mcp
+tavily-python
+httpx
+langchain-core

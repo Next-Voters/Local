@@ -1,0 +1,68 @@
+graph TB
+    %% Sequential Pipeline — Legislation & Accountability System
+    %% Static LangGraph DAG with Conditional Retry Edge
+    %% 3 ReAct Agents | 4 Single LLM Calls | 3 Pure Code Steps
+
+    START([User Trigger]) --> AGENT1
+
+    %% AGENT 1 — ReAct Agent
+    AGENT1[Agent 1: Legislation Finder — ReAct]
+    AGENT1 --> A1_TOOLS[Tools: Web Search, URL Fetcher, HTML Parser, Source Reliability]
+    AGENT1 ==>|URLs + bill metadata| AGENT2
+
+    %% AGENT 2 — ReAct Agent
+    AGENT2[Agent 2: Scraper Builder — ReAct]
+    AGENT2 --> A2_TOOLS[Tools: Code Generator, Python REPL, Date Filter, Debugger]
+    AGENT2 ==>|raw legislation text + vote records| AGENT3
+
+    %% AGENT 3 — ReAct Agent
+    AGENT3[Agent 3: Politician Position Finder — ReAct]
+    AGENT3 --> A3_TOOLS[Tools: Web Search, Press Release Scraper, Floor Speech Parser, Vote Record Matcher]
+    AGENT3 ==>|raw politician statements| REDACTOR
+
+    %% REDACTOR — pure code, no LLM
+    REDACTOR([Redactor — Pure Code])
+    REDACTOR ==>|anonymized statements + raw source| RHETORIC
+
+    %% RHETORIC NEUTRALIZER — single LLM call, no tools
+    RHETORIC{{Rhetoric Neutralizer — Single LLM Call}}
+    RHETORIC ==>|structured neutral analysis| JUDGE
+
+    %% JUDGE — single LLM call, stateless, no tools, no memory, different model
+    JUDGE{{Judge — Single LLM Call, Different Model}}
+    JUDGE -->|PASS| RESEARCH
+    JUDGE -->|FAIL: soft criteria| RHETORIC
+    JUDGE -->|FAIL: identity inference| REDACTOR
+    JUDGE -->|retries exhausted| QUARANTINE([Quarantine — confidence: low])
+    QUARANTINE -.-> RESEARCH
+
+    %% RESEARCH WRITER — single LLM call, no tools
+    RESEARCH{{Research Writer — Single LLM Call}}
+    RESEARCH ==>|research notes| CITATION
+
+    %% CITATION VALIDATION — pure code, no LLM
+    CITATION([Citation Validation — Pure Code])
+    CITATION ==>|validated notes| VECTORDB_WRITE
+
+    %% VECTOR DB WRITE — pure code, no LLM
+    VECTORDB_WRITE([Vector DB Write — Pure Code])
+    VECTORDB_WRITE -->|publish embeddings| VECTOR_DB[(Vector Knowledge DB)]
+    VECTORDB_WRITE ==>|validated research notes| PRESENTATION
+
+    %% PRESENTATION LLM — single LLM call
+    PRESENTATION{{Presentation LLM — Single LLM Call}}
+    PRESENTATION --> OUTPUT([Final User Output])
+
+    %% RAG — downstream consumer
+    VECTOR_DB -.->|retrieval| RAG[RAG Chatbot]
+
+    %% LEGEND
+    %% [Square] = ReAct Agent (autonomous tool-use loop)
+    %% {{Diamond}} = Single LLM Call (no tools, no agency)
+    %% ([Rounded]) = Pure Code Step (no LLM at all)
+    %% ==> thick arrow = chain dependency
+    %% --> solid arrow = data flow / tool access
+    %% -.-> dashed = conditional / async path
+    %% Judge criteria: 0) Identity inference prohibition 1) Grounding 2) Tonal bias 3) Unsupported inference
+    %% Judge retry: max 2 retries, then quarantine
+    %% Redactor: NER-based name removal, title stripping, replaces with Legislator A/B/C
