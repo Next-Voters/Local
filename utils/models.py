@@ -31,6 +31,12 @@ class IndividualReliabilityAnalysis(BaseModel):
 class WriterOutput(BaseModel):
     """Structured reflection output produced by the reflection tool."""
 
-    title: str = Field(description="Title of the written content")
-    body: str = Field(description="Main written content")
-    summary: str = Field(description="Brief summary of the content")
+    title: str = Field(
+        description="Title of the written content"
+    )
+    body: str = Field(
+        description="Main written content"
+    )
+    summary: str = Field(
+        description="Brief summary of the content"
+    )
