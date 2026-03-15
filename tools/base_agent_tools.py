@@ -22,17 +22,14 @@ _mini_model = ChatOpenAI(
 def reflection_tool(
     messages: Annotated[list[BaseMessage], InjectedState("messages")],
 ) -> Command:
-    """
+    f"""
 You are a reflection tool embedded in a multi-step research pipeline. Your job \
 is to reason carefully over the full conversation history provided to you — \
 including every tool call and its response — and produce a structured assessment \
 that will guide the next decision in the pipeline.
 
-## Context
-Organization context: {org_context}
-
-## Conversation history (most recent {n} messages)
-{conversation_summary}
+## Conversation history:
+{messages}
 
 ---
 
@@ -41,7 +38,7 @@ Organization context: {org_context}
 Work through the following chain of thought before producing your output:
 
 1. **Inventory what has been attempted**
-   List every distinct action taken so far: searches run, entities looked up, \
+   List every distinct action taken so far such as searches run, entities looked up, \
    APIs called, and the key result or outcome of each.
 
 2. **Identify what has been established**
@@ -63,24 +60,6 @@ Work through the following chain of thought before producing your output:
    progress. Be specific: name the tool to call, the exact query or entity to \
    use, and why this is the highest-value next step. This must be a concrete \
    instruction the agent can act on immediately.
-
----
-
-## Output format
-
-Respond ONLY with a JSON object — no preamble, no markdown fences, no commentary.
-
-{{
-  "reflection": "<2–4 sentence summary of what has been done and what was learned>",
-  "gaps_identified": [
-    "<specific gap or unanswered question>",
-    "<another gap if applicable>"
-  ],
-  "next_action": "<direct, actionable instruction written as if addressed to the \
-agent — e.g., 'Search Wikidata for entity Q12345 to resolve the subsidiary \
-relationship' or 'Call get_org_classification with identifier X because the \
-current classification is ambiguous'>"
-}}
 
 Rules:
 - next_action must be a single, specific instruction. Never write "continue \
