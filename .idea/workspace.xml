@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="8ab22b1c-6b94-43ac-9608-ce875718bbf6" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/tools/scraper_builder.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/scraper_builder.py" afterDir="false" />
+    <list default="true" id="8ab22b1c-6b94-43ac-9608-ce875718bbf6" name="Changes" comment="Move the extract json function to helper.py utils module (seperation of concern from the tool logic stuff)">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,20 +42,103 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.main.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.editor&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/utils" />
       <recent name="$PROJECT_DIR$" />
     </key>
+  </component>
+  <component name="RunManager">
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <module name="Next-Voters-Local" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="Tox" factoryName="Tox">
+      <module name="Next-Voters-Local" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Autodetect">
+      <module name="Next-Voters-Local" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Doctests">
+      <module name="Next-Voters-Local" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method v="2" />
+    </configuration>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
@@ -71,206 +154,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1772333437537</updated>
-    </task>
-    <task id="LOCAL-00001" summary="add langchain imports">
-      <option name="closed" value="true" />
-      <created>1772334211368</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1772334211368</updated>
-    </task>
-    <task id="LOCAL-00002" summary="add langchain chains import (for workflow orcheastration)">
-      <option name="closed" value="true" />
-      <created>1772334281358</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1772334281358</updated>
-    </task>
-    <task id="LOCAL-00003" summary="add langchain chains import (for workflow orcheastration)">
-      <option name="closed" value="true" />
-      <created>1772334374617</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1772334374617</updated>
-    </task>
-    <task id="LOCAL-00004" summary="add stuff">
-      <option name="closed" value="true" />
-      <created>1773266202585</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1773266202586</updated>
-    </task>
-    <task id="LOCAL-00005" summary="add better context to give to claude ai agents">
-      <option name="closed" value="true" />
-      <created>1773274010665</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1773274010665</updated>
-    </task>
-    <task id="LOCAL-00006" summary="advanced scaffolding for building out system">
-      <option name="closed" value="true" />
-      <created>1773274041707</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1773274041707</updated>
-    </task>
-    <task id="LOCAL-00007" summary="update system design to reflect my new thoughts">
-      <option name="closed" value="true" />
-      <created>1773274292604</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1773274292605</updated>
-    </task>
-    <task id="LOCAL-00008" summary="update some more stuff">
-      <option name="closed" value="true" />
-      <created>1773338482156</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1773338482156</updated>
-    </task>
-    <task id="LOCAL-00009" summary="proper implementation of agents">
-      <option name="closed" value="true" />
-      <created>1773340579151</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1773340579151</updated>
-    </task>
-    <task id="LOCAL-00010" summary="Made some changes to the overall flow. Added 2 states which persist throughout workflow: agent_conversation, city.">
-      <option name="closed" value="true" />
-      <created>1773344555314</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1773344555314</updated>
-    </task>
-    <task id="LOCAL-00011" summary="Updated system prompt for first agent to be more specific and roboust for system that we are building">
-      <option name="closed" value="true" />
-      <created>1773345535199</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1773345535199</updated>
-    </task>
-    <task id="LOCAL-00012" summary="Do not add _ after tool in query_builder tool (wrong naming of tool, could confuse llm)">
-      <option name="closed" value="true" />
-      <created>1773345652892</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1773345652892</updated>
-    </task>
-    <task id="LOCAL-00013" summary="Working on better context management for better agentic development">
-      <option name="closed" value="true" />
-      <created>1773346821677</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1773346821683</updated>
-    </task>
-    <task id="LOCAL-00014" summary="Low level agent mostly completed. Need to add one more tool: reliability analysis to ensure proper legislation links are being stored (not any partisian or biased medias)">
-      <option name="closed" value="true" />
-      <created>1773353206139</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1773353206139</updated>
-    </task>
-    <task id="LOCAL-00015" summary="In legislation finder agent system prompt, we now added further enriched context from reflection notes that agent generates through `reflection` tool">
-      <option name="closed" value="true" />
-      <created>1773353276597</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1773353276597</updated>
-    </task>
-    <task id="LOCAL-00016" summary="Returning a command to update the legislation sources with the top 5 relevant searches from tavily">
-      <option name="closed" value="true" />
-      <created>1773353534219</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
-      <option name="project" value="LOCAL" />
-      <updated>1773353534219</updated>
-    </task>
-    <task id="LOCAL-00017" summary="defined the state for the reliability analysis. logic has yet to be implemented for the tool.">
-      <option name="closed" value="true" />
-      <created>1773354103626</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1773354103626</updated>
-    </task>
-    <task id="LOCAL-00018" summary="Add system prompt for the writer node">
-      <option name="closed" value="true" />
-      <created>1773376229858</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1773376229858</updated>
-    </task>
-    <task id="LOCAL-00019" summary="Wikidata client added. This will be used to enrich the tools within legislation finder agent.">
-      <option name="closed" value="true" />
-      <created>1773376391694</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1773376391694</updated>
-    </task>
-    <task id="LOCAL-00020" summary="Added wikidata as a way of verifying the validitiy of organizations into our relibaility analysis tool">
-      <option name="closed" value="true" />
-      <created>1773377395023</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1773377395023</updated>
-    </task>
-    <task id="LOCAL-00021" summary="Remove === TOOLS === comment as tools have been moved (will commit that shortly)">
-      <option name="closed" value="true" />
-      <created>1773377426102</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
-      <option name="project" value="LOCAL" />
-      <updated>1773377426102</updated>
-    </task>
-    <task id="LOCAL-00022" summary="Added a tier 3 description">
-      <option name="closed" value="true" />
-      <created>1773377634411</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
-      <option name="project" value="LOCAL" />
-      <updated>1773377634411</updated>
-    </task>
-    <task id="LOCAL-00023" summary="Add reflection prompt for reflection tool within our legislation finder agent workflow">
-      <option name="closed" value="true" />
-      <created>1773377722441</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
-      <option name="project" value="LOCAL" />
-      <updated>1773377722441</updated>
-    </task>
-    <task id="LOCAL-00024" summary="Add models.py to store pyandatic models and tools directory for all tool code/logic">
-      <option name="closed" value="true" />
-      <created>1773377884918</created>
-      <option name="number" value="00024" />
-      <option name="presentableId" value="LOCAL-00024" />
-      <option name="project" value="LOCAL" />
-      <updated>1773377884918</updated>
-    </task>
-    <task id="LOCAL-00025" summary="Add proper node implementation for writer (synthezises research notes that come from final output of agents)">
-      <option name="closed" value="true" />
-      <created>1773378040434</created>
-      <option name="number" value="00025" />
-      <option name="presentableId" value="LOCAL-00025" />
-      <option name="project" value="LOCAL" />
-      <updated>1773378040434</updated>
+      <workItem from="1773601489171" duration="16441000" />
     </task>
     <task id="LOCAL-00026" summary="Better documentation for README">
       <option name="closed" value="true" />
@@ -384,8 +268,291 @@
       <option name="project" value="LOCAL" />
       <updated>1773509911069</updated>
     </task>
-    <option name="localTasksCounter" value="40" />
+    <task id="LOCAL-00040" summary="workspace config">
+      <option name="closed" value="true" />
+      <created>1773511617048</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1773511617049</updated>
+    </task>
+    <task id="LOCAL-00041" summary="Using a simple chain with Langchain instead of a complex graph in Langraph due to simplicity of orchestration logic">
+      <option name="closed" value="true" />
+      <created>1773512538288</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1773512538288</updated>
+    </task>
+    <task id="LOCAL-00042" summary="Update requirements.txt to include new modules needed because of previous commit">
+      <option name="closed" value="true" />
+      <created>1773512573999</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1773512573999</updated>
+    </task>
+    <task id="LOCAL-00043" summary="Fix type annotation. Web_search tool should be returning a command OR a string (in case there are errors)">
+      <option name="closed" value="true" />
+      <created>1773513047353</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1773513047353</updated>
+    </task>
+    <task id="LOCAL-00044" summary="Throw an error to fall into the except block instead of just returning the statement. Better for consistency and code cleanliness.">
+      <option name="closed" value="true" />
+      <created>1773513086778</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1773513086778</updated>
+    </task>
+    <task id="LOCAL-00045" summary="Use SERP for web search instead of Tavily.">
+      <option name="closed" value="true" />
+      <created>1773514226009</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1773514226009</updated>
+    </task>
+    <task id="LOCAL-00046" summary="Update state structure to allow for org name to be passed directly in from Serp results. This way, we can remove LLM overhead that used to identify organizations.">
+      <option name="closed" value="true" />
+      <created>1773515341226</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1773515341226</updated>
+    </task>
+    <task id="LOCAL-00047" summary="Format to match other models. (Add spacing for descriptions)">
+      <option name="closed" value="true" />
+      <created>1773515362201</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1773515362201</updated>
+    </task>
+    <task id="LOCAL-00048" summary="Remove empty line.">
+      <option name="closed" value="true" />
+      <created>1773515376739</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1773515376739</updated>
+    </task>
+    <task id="LOCAL-00049" summary="The final output of the legislation_finder agent isnt within the final message, but the relibale_legislation_sources state field, so pass that into the Langchain model.">
+      <option name="closed" value="true" />
+      <created>1773515554261</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1773515554261</updated>
+    </task>
+    <task id="LOCAL-00050" summary="Use SERP_API_KEY instead of TAVILY_API_KEY">
+      <option name="closed" value="true" />
+      <created>1773515572317</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1773515572318</updated>
+    </task>
+    <task id="LOCAL-00051" summary="Made a much more cleaner code organization. Moved base agent logics to agent and tools folder respectfully and the typed dict to a util file (will move all typed dicts soon).">
+      <option name="closed" value="true" />
+      <created>1773516209610</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1773516209610</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Move all typed dictionaries to the utils file for it.">
+      <option name="closed" value="true" />
+      <created>1773516511504</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1773516511504</updated>
+    </task>
+    <task id="LOCAL-00053" summary="Add white line space">
+      <option name="closed" value="true" />
+      <created>1773516539643</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1773516539643</updated>
+    </task>
+    <task id="LOCAL-00054" summary="expand the ignored files with __pycache__ and .idea">
+      <option name="closed" value="true" />
+      <created>1773517005920</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1773517005920</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Langchain workflow updated: Added politician public statement agent wrapper function call, and a report formatter that takes in both statements and legislation summary. Also included context compaction through a research note taker chain node.">
+      <option name="closed" value="true" />
+      <created>1773522614236</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1773522614236</updated>
+    </task>
+    <task id="LOCAL-00056" summary="Better docustring and description for body within WriterOutput (ensuring that LLM stays within the bound of bullet point generation)">
+      <option name="closed" value="true" />
+      <created>1773522647597</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1773522647598</updated>
+    </task>
+    <task id="LOCAL-00057" summary="Pass in research notes to generate the nicely formatted content.">
+      <option name="closed" value="true" />
+      <created>1773522675140</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1773522675140</updated>
+    </task>
+    <task id="LOCAL-00058" summary="Add the typed dicts to allow for the politician public statement agent.">
+      <option name="closed" value="true" />
+      <created>1773522697391</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1773522697391</updated>
+    </task>
+    <task id="LOCAL-00059" summary="Added proper system prompt for research note taker chain node">
+      <option name="closed" value="true" />
+      <created>1773523911888</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1773523911888</updated>
+    </task>
+    <task id="LOCAL-00060" summary="Optimize prompts with Claude (powered by skills) and remove unneeded sys prompts due to changing design constraints">
+      <option name="closed" value="true" />
+      <created>1773524352103</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1773524352103</updated>
+    </task>
+    <task id="LOCAL-00061" summary="Format the Command syntax properly (spacing)">
+      <option name="closed" value="true" />
+      <created>1773601910246</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1773601910247</updated>
+    </task>
+    <task id="LOCAL-00062" summary="Whitespace added">
+      <option name="closed" value="true" />
+      <created>1773601934302</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1773601934302</updated>
+    </task>
+    <task id="LOCAL-00063" summary="Fix type safeing syntax for state_schema attribute">
+      <option name="closed" value="true" />
+      <created>1773602444298</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1773602444298</updated>
+    </task>
+    <task id="LOCAL-00064" summary="Ensure tool message is returned into the message state so that agent can keep track of all activities that have occured.">
+      <option name="closed" value="true" />
+      <created>1773603081708</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1773603081708</updated>
+    </task>
+    <task id="LOCAL-00065" summary="Add prompt into the tool">
+      <option name="closed" value="true" />
+      <created>1773607057129</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1773607057129</updated>
+    </task>
+    <task id="LOCAL-00066" summary="Add prompt into the tool">
+      <option name="closed" value="true" />
+      <created>1773611442546</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1773611442546</updated>
+    </task>
+    <task id="LOCAL-00067" summary="Better prompt for tool discovery purpose">
+      <option name="closed" value="true" />
+      <created>1773613118419</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1773613118419</updated>
+    </task>
+    <task id="LOCAL-00068" summary="Fix import errors + add dotenv so openai api key loads">
+      <option name="closed" value="true" />
+      <created>1773613133873</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1773613133873</updated>
+    </task>
+    <task id="LOCAL-00069" summary="Syntax fixes to allow for langgraph to use tool properly">
+      <option name="closed" value="true" />
+      <created>1773623226859</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1773623226859</updated>
+    </task>
+    <task id="LOCAL-00070" summary="Fix workflow from all errors.">
+      <option name="closed" value="true" />
+      <created>1773624225903</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1773624225903</updated>
+    </task>
+    <task id="LOCAL-00071" summary="Proper prompt engineering from initial runs">
+      <option name="closed" value="true" />
+      <created>1773624329989</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1773624329989</updated>
+    </task>
+    <task id="LOCAL-00072" summary="Add whitelines">
+      <option name="closed" value="true" />
+      <created>1773624353787</created>
+      <option name="number" value="00072" />
+      <option name="presentableId" value="LOCAL-00072" />
+      <option name="project" value="LOCAL" />
+      <updated>1773624353787</updated>
+    </task>
+    <task id="LOCAL-00073" summary="Clean the content from the judgement of the reliability tool">
+      <option name="closed" value="true" />
+      <created>1773624452334</created>
+      <option name="number" value="00073" />
+      <option name="presentableId" value="LOCAL-00073" />
+      <option name="project" value="LOCAL" />
+      <updated>1773624452335</updated>
+    </task>
+    <task id="LOCAL-00074" summary="Move the extract json function to helper.py utils module (seperation of concern from the tool logic stuff)">
+      <option name="closed" value="true" />
+      <created>1773624774419</created>
+      <option name="number" value="00074" />
+      <option name="presentableId" value="LOCAL-00074" />
+      <option name="project" value="LOCAL" />
+      <updated>1773624774419</updated>
+    </task>
+    <option name="localTasksCounter" value="75" />
     <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
@@ -399,31 +566,31 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Returning a command to update the legislation sources with the top 5 relevant searches from tavily" />
-    <MESSAGE value="defined the state for the reliability analysis. logic has yet to be implemented for the tool." />
-    <MESSAGE value="Add system prompt for the writer node" />
-    <MESSAGE value="Wikidata client added. This will be used to enrich the tools within legislation finder agent." />
-    <MESSAGE value="Added wikidata as a way of verifying the validitiy of organizations into our relibaility analysis tool" />
-    <MESSAGE value="Remove === TOOLS === comment as tools have been moved (will commit that shortly)" />
-    <MESSAGE value="Added a tier 3 description" />
-    <MESSAGE value="Add reflection prompt for reflection tool within our legislation finder agent workflow" />
-    <MESSAGE value="Add models.py to store pyandatic models and tools directory for all tool code/logic" />
-    <MESSAGE value="Add proper node implementation for writer (synthezises research notes that come from final output of agents)" />
-    <MESSAGE value="Better documentation for README" />
-    <MESSAGE value="Create starting point code for scraper builder agent + move shared node logic to utils file to avoid re defining over and over (DRY priniciple)" />
-    <MESSAGE value="Scaffolding for tools within the tools subdirectory" />
-    <MESSAGE value="Import all tools and add them to the ToolNode object through passing them in the list" />
-    <MESSAGE value="Fix syntax error for function declaration" />
-    <MESSAGE value="Improved logic by building a shared agent class which includes all nodes that are needed (for now, there is only tool calls, and no custom needs, but we can add extensbility within the future if needed by just passing in a list of functions to add nodes)" />
-    <MESSAGE value="Add prompt builders =&gt; which are util functions that are used by the agents to format their system prompts" />
-    <MESSAGE value=" Problem fixed: The previous implementation was building the system prompt once at module load time, so it never received fresh state (stale reflection list).                               agents/legislation_finder.py  +29 -55   &#10;                                                                                                                                                                                                 agents/scraper_builder.py     +55 -55   &#10;     Solution: Moved prompt building back into the node via callback functions, ensuring the prompt is built fresh on each model invocation with current state." />
-    <MESSAGE value="Avoid overly postive responses and instead focus on the work -&gt; CLAUDE agent customization" />
-    <MESSAGE value="Add better injection of reflection list based on shared class state of BaseAgentState (which will hold general states that all agents shares)" />
-    <MESSAGE value="Ensure AI coding agents do not build __init__.py files when building new sub directories" />
-    <MESSAGE value="rename system design file" />
-    <MESSAGE value="Better model (gpt 5 mini) for tool logic" />
-    <MESSAGE value="The reflection tool will automatically be available (part of ReAct's design is to have such a component) through shared tools and it being default added to the list of tools within the BaseReAct agent template" />
-    <MESSAGE value="no need for comment" />
-    <option name="LAST_COMMIT_MESSAGE" value="no need for comment" />
+    <MESSAGE value="The final output of the legislation_finder agent isnt within the final message, but the relibale_legislation_sources state field, so pass that into the Langchain model." />
+    <MESSAGE value="Use SERP_API_KEY instead of TAVILY_API_KEY" />
+    <MESSAGE value="Made a much more cleaner code organization. Moved base agent logics to agent and tools folder respectfully and the typed dict to a util file (will move all typed dicts soon)." />
+    <MESSAGE value="Move all typed dictionaries to the utils file for it." />
+    <MESSAGE value="Add white line space" />
+    <MESSAGE value="expand the ignored files with __pycache__ and .idea" />
+    <MESSAGE value="Langchain workflow updated: Added politician public statement agent wrapper function call, and a report formatter that takes in both statements and legislation summary. Also included context compaction through a research note taker chain node." />
+    <MESSAGE value="Better docustring and description for body within WriterOutput (ensuring that LLM stays within the bound of bullet point generation)" />
+    <MESSAGE value="Pass in research notes to generate the nicely formatted content." />
+    <MESSAGE value="Add the typed dicts to allow for the politician public statement agent." />
+    <MESSAGE value="Added proper system prompt for research note taker chain node" />
+    <MESSAGE value="Optimize prompts with Claude (powered by skills) and remove unneeded sys prompts due to changing design constraints" />
+    <MESSAGE value="Format the Command syntax properly (spacing)" />
+    <MESSAGE value="Whitespace added" />
+    <MESSAGE value="Fix type safeing syntax for state_schema attribute" />
+    <MESSAGE value="Ensure tool message is returned into the message state so that agent can keep track of all activities that have occured." />
+    <MESSAGE value="Add prompt into the tool" />
+    <MESSAGE value="Better prompt for tool discovery purpose" />
+    <MESSAGE value="Fix import errors + add dotenv so openai api key loads" />
+    <MESSAGE value="Syntax fixes to allow for langgraph to use tool properly" />
+    <MESSAGE value="Fix workflow from all errors." />
+    <MESSAGE value="Proper prompt engineering from initial runs" />
+    <MESSAGE value="Add whitelines" />
+    <MESSAGE value="Clean the content from the judgement of the reliability tool" />
+    <MESSAGE value="Move the extract json function to helper.py utils module (seperation of concern from the tool logic stuff)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Move the extract json function to helper.py utils module (seperation of concern from the tool logic stuff)" />
   </component>
 </project>
