@@ -4,8 +4,8 @@ import json
 from typing import Annotated
 from dotenv import load_dotenv
 
-from langchain_core.messages import BaseMessage
-from langchain_core.tools import tool
+from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.tools import tool, InjectedToolCallId
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
@@ -22,20 +22,18 @@ _mini_model = ChatOpenAI(
 
 @tool
 def reflection_tool(
+    tool_call_id: Annotated[str, InjectedToolCallId],
     messages: Annotated[list[BaseMessage], InjectedState("messages")],
 ) -> Command:
     """Reflects on conversation history to determine the next action."""
 
-    # Build a conversation summary from recent messages
     recent_messages = messages[-10:] if len(messages) > 10 else messages
     conversation_summary = "\n".join(
         f"{msg.type}: {msg.content[:500]}" for msg in recent_messages if msg.content
     )
 
-    # Call LLM with reflection prompt
     formatted_prompt = reflection_prompt.format(
         conversation_summary=conversation_summary,
-        org_context=org_context,
     )
     response = _mini_model.invoke(
         [
@@ -64,4 +62,11 @@ def reflection_tool(
             next_action="Continue searching with more specific queries.",
         )
 
-    return Command(update={"reflection_list": [entry]})
+    return Command(
+        update={
+            "reflection_list": [entry],
+            "messages": [
+                ToolMessage(content=entry.next_action, tool_call_id=tool_call_id)
+            ],
+        }
+    )
