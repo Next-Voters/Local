@@ -1,3 +1,7 @@
+from rich.console import Console
+
+console = Console()
+
 def show_welcome():
     """Display welcome message."""
     console.print()
