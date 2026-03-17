@@ -23,7 +23,7 @@ from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
 from agents.legislation_finder import legislation_finder_agent
-from agents.political_commentry import political_commentry_agent
+from agents.political_commentry_finder import political_commentry_agent
 
 from utils.schemas import WriterOutput, ChainData
 from config.system_prompts import writer_sys_prompt, note_taker_sys_prompt
