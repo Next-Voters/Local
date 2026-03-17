@@ -1,0 +1,35 @@
+name: "Legislation Search"
+description: "Optimized for finding current municipal legislation within the current month"
+query_instructions: |
+  Prioritize official government sources (.gov, .gc.ca) for municipal 
+  legislation, city council ordinances, and legislative databases. 
+  Exclude social media, blogs, and opinion pieces. Focus on current 
+  month's legislation only.
+rules:
+  - "$boost=5,site=gov"
+  - "$boost=5,site=gc.ca"
+  - "$boost=5,site=city"
+  - "$boost=5,site=municipal"
+  - "$boost=4,site=legistar.com"
+  - "$boost=4,site=municode.com"
+  - "$boost=4,site=council"
+  - "$boost=4,site=legislature"
+  - "$boost=4,site=assembly"
+  - "$boost=3,site=apnews.com"
+  - "$boost=3,site=reuters.com"
+  - "$boost=3,site=nytimes.com"
+  - "$boost=3,site=wsj.com"
+  - "$boost=3,site=localnews"
+  - "$boost=2,site=c-span.org"
+  - "$downrank=5,site=twitter.com"
+  - "$downrank=5,site=x.com"
+  - "$downrank=5,site=facebook.com"
+  - "$downrank=5,site=instagram.com"
+  - "$downrank=4,site=medium.com"
+  - "$downrank=4,site=substack.com"
+  - "$downrank=4,site=wordpress.com"
+  - "$downrank=4,site=blog"
+  - "$downrank=4,site=opinion"
+  - "$downrank=4,site=editorial"
+  - "$downrank=3,site=advocacy"
+  - "$downrank=3,site=activist"
