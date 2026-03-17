@@ -1,11 +1,11 @@
-"""This includes all typed dictionaries used by the product within multiple applications such as the states for Langgraph"""
+"""Typed dictionaries for LangGraph agent states."""
 
 from typing import NotRequired, Annotated, TypedDict
 
 import operator
 
 from langchain_core.messages import BaseMessage
-from utils.models import ReflectionEntry, WriterOutput
+from utils.schemas.pydantic import ReflectionEntry, WriterOutput
 
 
 class BaseAgentState(TypedDict):
@@ -40,7 +40,7 @@ class LegislationContent(TypedDict):
 
 
 class IndividualStatementSummary(TypedDict):
-    """The information about a statement made by a politician for a specific legislative source. Summary must be short (2-3 sentences MAX)"""
+    """The information about a statement made by a politician for a specific legislative source."""
 
     source: str
     summary: str

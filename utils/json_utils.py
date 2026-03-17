@@ -1,3 +1,8 @@
+"""JSON utility functions."""
+
+from typing import Any
+
+
 def extract_json(text: str) -> str:
     """Strip markdown code fences from LLM output before parsing."""
     text = text.strip()
@@ -8,4 +13,3 @@ def extract_json(text: str) -> str:
     if text.endswith("```"):
         text = text[:-3]
     return text.strip()
-

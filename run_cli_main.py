@@ -4,7 +4,7 @@ from rich.markdown import Markdown
 from rich import box
 
 from pipelines.nv_local import chain
-from utils.cli_helpers import show_welcome, LOG
+from utils.cli import show_welcome, LOG
 
 console = Console()
 

@@ -6,8 +6,7 @@ from langchain_openai import ChatOpenAI
 
 from agents.legislation_finder import legislation_finder_agent
 
-from utils.models import WriterOutput
-from utils.typed_dicts import ChainData
+from utils.schemas import WriterOutput, ChainData
 from utils.prompts import writer_sys_prompt, note_taker_sys_prompt
 
 load_dotenv()

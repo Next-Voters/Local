@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from agents.base_agent_template import BaseReActAgent
 from tools.political_commentry import political_figure_finder, blog_search
 
-from utils.typed_dicts import PoliticalCommentaryState
+from utils.schemas import PoliticalCommentaryState
 
 load_dotenv()
 

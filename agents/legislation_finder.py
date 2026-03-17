@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from agents.base_agent_template import BaseReActAgent
 from tools.legislation_finder import web_search, reliability_analysis
 
-from utils.typed_dicts import LegislationFinderState
+from utils.schemas import LegislationFinderState
 from utils.prompts import legislation_finder_sys_prompt
 
 load_dotenv()

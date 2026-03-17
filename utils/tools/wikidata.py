@@ -1,5 +1,4 @@
-"""
-Wikidata API client — mirrors the tools exposed by zzaebok/mcp-wikidata MCP server.
+"""Wikidata API client for organization lookup and entity classification.
 
 Provides direct HTTP access to the Wikidata API and SPARQL endpoint for
 organization lookup and entity classification. Used by Agent 1 tools
@@ -179,7 +178,6 @@ def get_org_classification(entity_id: str) -> dict:
     try:
         results = execute_sparql(sparql)
     except Exception:
-        # Fallback to basic metadata if SPARQL fails
         return get_metadata(entity_id)
 
     metadata = get_metadata(entity_id)

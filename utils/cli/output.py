@@ -1,8 +1,11 @@
+"""CLI output helpers for console display."""
+
 from rich.console import Console
 from rich.panel import Panel
 from rich import box
 
 console = Console()
+
 
 def show_welcome():
     """Display welcome message."""
@@ -22,7 +25,7 @@ def show_welcome():
     )
     console.print()
     console.print(
-        "  [dim]🔎  Discover recent municipal legislation, by-laws & civic updates[/dim]"
+        "[dim]🔎  Discover recent municipal legislation, by-laws & civic updates[/dim]"
     )
     console.print("  [dim]📜  Stay informed about city council decisions[/dim]")
     console.print("  [dim]🗳️  Empower your local voting decisions[/dim]")
@@ -31,6 +34,7 @@ def show_welcome():
         "[green]▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔[/green]"
     )
     console.print()
+
 
 def LOG(message: str, style: str = "dim"):
     """Styled logging output."""

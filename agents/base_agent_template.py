@@ -5,8 +5,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 
-from utils.models import ReflectionEntry
-from utils.typed_dicts import BaseAgentState
+from utils.schemas import ReflectionEntry, BaseAgentState
 from tools.base_agent_tools import reflection_tool
 
 load_dotenv()
