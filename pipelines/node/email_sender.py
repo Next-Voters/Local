@@ -6,7 +6,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from threading import Lock
-from typing import List
 
 import markdown
 from supabase import create_client, Client
@@ -19,7 +18,7 @@ class SMTPConnectionPool:
         self.pool_size = pool_size
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
-        self.connections: List[smtplib.SMTP] = []
+        self.connections: list[smtplib.SMTP] = []
         self.lock = Lock()
         self._init_pool()
 
@@ -70,7 +69,7 @@ def render_template(html_content: str) -> str:
     return template.replace("{{CONTENT}}", html_content)
 
 
-def get_subscribers() -> List[str]:
+def get_subscribers() -> list[str]:
     supabase_url = os.environ["SUPABASE_URL"]
     supabase_key = os.environ["SUPABASE_KEY"]
     client: Client = create_client(supabase_url, supabase_key)
@@ -91,7 +90,7 @@ def send_single_email(
     email: str,
     subject: str,
     html_body: str,
-    failures: List[dict],
+    failures: list[dict],
     failures_lock: Lock,
 ) -> bool:
     conn = None
@@ -129,10 +128,10 @@ Content-Type: text/html; charset=utf-8
 
 def send_batch(
     pool: SMTPConnectionPool,
-    emails: List[str],
+    emails: list[str],
     subject: str,
     html_body: str,
-    failures: List[dict],
+    failures: list[dict],
     failures_lock: Lock,
 ):
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -152,7 +151,7 @@ def send_batch(
             future.result()
 
 
-def save_failures(failures: List[dict]):
+def save_failures(failures: list[dict]):
     if not failures:
         return
     failures_path = os.path.join(os.path.dirname(__file__), "..", "email_failures.json")
@@ -175,7 +174,7 @@ def send_email_to_subscribers(inputs: ChainData) -> ChainData:
     html_body = render_template(html_content)
 
     pool = SMTPConnectionPool(pool_size=10)
-    failures: List[dict] = []
+    failures: list[dict] = []
     failures_lock = Lock()
 
     try:

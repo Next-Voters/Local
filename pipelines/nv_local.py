@@ -16,23 +16,12 @@ The pipeline uses a RunnableLambda-based chain that passes data between
 stages via a ChainData dictionary.
 """
 
-from langchain_core.runnables import RunnableLambda
-
-from pipelines.node.legislation_finder import (
-    run_legislation_finder,
-    legislation_finder_chain,
-)
-from pipelines.node.content_retrieval import (
-    run_content_retrieval,
-    content_retrieval_chain,
-)
-from pipelines.node.note_taker import research_note_taker, note_taker_chain
-from pipelines.node.summary_writer import research_summary_writer, summary_writer_chain
-from pipelines.node.politician_commentary import (
-    run_politician_commentry_finder,
-    politician_commentary_chain,
-)
-from pipelines.node.report_formatter import report_formatter, report_formatter_chain
+from pipelines.node.legislation_finder import legislation_finder_chain
+from pipelines.node.content_retrieval import content_retrieval_chain
+from pipelines.node.note_taker import note_taker_chain
+from pipelines.node.summary_writer import summary_writer_chain
+from pipelines.node.politician_commentary import politician_commentary_chain
+from pipelines.node.report_formatter import report_formatter_chain
 from pipelines.node.email_sender import send_email_to_subscribers
 
 chain = (

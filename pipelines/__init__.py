@@ -10,7 +10,7 @@ from pipelines.node.content_retrieval import (
 from pipelines.node.note_taker import research_note_taker, note_taker_chain
 from pipelines.node.summary_writer import research_summary_writer, summary_writer_chain
 from pipelines.node.politician_commentary import (
-    run_politician_commentry_finder,
+    run_politician_commentary_finder,
     politician_commentary_chain,
 )
 from pipelines.node.report_formatter import report_formatter, report_formatter_chain
@@ -23,7 +23,7 @@ __all__ = [
     "run_content_retrieval",
     "research_note_taker",
     "research_summary_writer",
-    "run_politician_commentry_finder",
+    "run_politician_commentary_finder",
     "report_formatter",
     "send_email_to_subscribers",
     "legislation_finder_chain",

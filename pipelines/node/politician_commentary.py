@@ -3,7 +3,7 @@ from langchain_core.runnables import RunnableLambda
 from utils.schemas import ChainData
 
 
-def run_politician_commentry_finder(inputs: ChainData) -> ChainData:
+def run_politician_commentary_finder(inputs: ChainData) -> ChainData:
     from agents.political_commentry_finder import political_commentry_agent
 
     city = inputs.get("city", "Unknown")
@@ -15,4 +15,4 @@ def run_politician_commentry_finder(inputs: ChainData) -> ChainData:
     return {**inputs, "politician_public_statements": political_commentary}
 
 
-politician_commentary_chain = RunnableLambda(run_politician_commentry_finder)
+politician_commentary_chain = RunnableLambda(run_politician_commentary_finder)
