@@ -7,8 +7,6 @@ structured knowledge.
 
 Functions match the MCP server's tool interface:
     - search_entity(query) -> entity ID
-    - search_property(query) -> property ID
-    - get_entity_properties(entity_id) -> list of property IDs
     - get_metadata(entity_id) -> {label, description}
     - execute_sparql(sparql_query) -> list of result bindings
     - get_org_classification(entity_id) -> structured org type data
@@ -50,55 +48,6 @@ def search_entity(query: str) -> str | None:
         return title.split(":")[-1]
     except (KeyError, IndexError):
         return None
-
-
-def search_property(query: str) -> str | None:
-    """Search for a Wikidata property ID by name.
-
-    Args:
-        query: The property name to search for (e.g., "instance of", "country").
-
-    Returns:
-        The Wikidata property ID (e.g., "P31") or None if not found.
-    """
-    params = {
-        "action": "query",
-        "list": "search",
-        "srsearch": query,
-        "srnamespace": 120,
-        "srlimit": 1,
-        "srqiprofile": "classic",
-        "srwhat": "text",
-        "format": "json",
-    }
-    response = httpx.get(WIKIDATA_API_URL, headers=HEADERS, params=params, timeout=15)
-    response.raise_for_status()
-    try:
-        title = response.json()["query"]["search"][0]["title"]
-        return title.split(":")[-1]
-    except (KeyError, IndexError):
-        return None
-
-
-def get_entity_properties(entity_id: str) -> list[str]:
-    """Get all property IDs associated with a Wikidata entity.
-
-    Args:
-        entity_id: A valid Wikidata entity ID (e.g., "Q2621").
-
-    Returns:
-        List of property IDs (e.g., ["P31", "P17", "P856"]).
-    """
-    params = {
-        "action": "wbgetentities",
-        "ids": entity_id,
-        "props": "claims",
-        "format": "json",
-    }
-    response = httpx.get(WIKIDATA_API_URL, headers=HEADERS, params=params, timeout=15)
-    response.raise_for_status()
-    data = response.json()
-    return list(data.get("entities", {}).get(entity_id, {}).get("claims", {}).keys())
 
 
 def get_metadata(entity_id: str, language: str = "en") -> dict[str, str]:

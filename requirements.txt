@@ -2,14 +2,14 @@ langgraph
 langchain-openai
 python-dotenv
 mcp
-tavily-python
 httpx
 langchain-core
 rich
 fastapi
 uvicorn
 redis
-python-multipart
 pydantic
 requests
 pyyaml
+supabase
+markdown

@@ -21,6 +21,7 @@ from utils.tools import (
     fetch_american_political_figures,
 )
 from utils.mcp.brave_client import search_political_content, extract_search_results
+from utils.mcp.twitter_client import search_user_and_tweets
 from utils.llm import get_mini_llm
 
 mini_model = get_mini_llm()
@@ -238,6 +239,146 @@ async def search_political_commentary(
         return Command(
             update={
                 "political_commentary": [],
+                "messages": [ToolMessage(content=error_msg, tool_call_id=tool_call_id)],
+            }
+        )
+
+
+@tool
+async def search_political_social_media(
+    politician: str,
+    city: Annotated[str, InjectedState("city")],
+    research_context: Annotated[str, InjectedState("research_notes", "")],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    max_results: int = 10,
+) -> Command:
+    """Search for a politician's social media posts to gather additional context.
+
+    IMPORTANT: This tool should ONLY be used when FAIRNESS and HOLISTIC understanding
+    require more context about the politician's position. Before using this tool, consider
+    whether the existing information is sufficient to provide a balanced view. This tool
+    exists to ensure voters receive a complete picture, not to amplify any particular viewpoint.
+
+    Use this tool when:
+    - You need more context to be fair and balanced
+    - The politician's official statements need verification
+    - You want to understand their position on specific city issues
+
+    Do NOT use this tool when:
+    - You already have sufficient information from official sources
+    - The purpose would be to find negative information
+    - The information available is already fair and complete
+
+    This tool automatically searches Twitter/X for the politician's official account
+    and retrieves their posts related to the city and research context.
+
+    Args:
+        politician: The full name of the politician to search for.
+        city: The city context (from state).
+        research_context: Additional context from research notes about what to search for.
+        tool_call_id: Injected by LangGraph — used to associate the ToolMessage.
+        max_results: Maximum number of tweets to retrieve (default 10).
+
+    Returns:
+        A Command object that updates the state with social media findings.
+    """
+    PREVIEW_MAX_LENGTH = 80
+
+    if not politician or not politician.strip():
+        return Command(
+            update={
+                "social_media_posts": [],
+                "messages": [
+                    ToolMessage(
+                        content="Politician name is required for social media search.",
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+            }
+        )
+
+    try:
+        result = await search_user_and_tweets(
+            politician_name=politician,
+            city=city,
+            research_context=research_context,
+            max_results=max_results,
+        )
+
+        if result.get("error"):
+            return Command(
+                update={
+                    "social_media_posts": [],
+                    "messages": [
+                        ToolMessage(
+                            content=f"Twitter search failed: {result['error']}",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                }
+            )
+
+        tweets = result.get("tweets", [])
+        user_found = result.get("user_found", False)
+
+        if not tweets:
+            return Command(
+                update={
+                    "social_media_posts": [],
+                    "messages": [
+                        ToolMessage(
+                            content=f"No tweets found for {politician} related to {city}. "
+                            "The politician may not have an active Twitter/X account.",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                }
+            )
+
+        social_posts = []
+        for tweet in tweets:
+            social_posts.append(
+                {
+                    "politician": politician,
+                    "platform": "twitter",
+                    "tweet_id": tweet.get("id"),
+                    "text": tweet.get("text"),
+                    "created_at": tweet.get("created_at"),
+                    "engagement": tweet.get("public_metrics", {}),
+                }
+            )
+
+        summary_lines = [f"Found {len(social_posts)} tweet(s) from {politician}:"]
+        for post in social_posts:
+            text_preview = (
+                post["text"][:PREVIEW_MAX_LENGTH] + "..."
+                if len(post["text"]) > PREVIEW_MAX_LENGTH
+                else post["text"]
+            )
+            summary_lines.append(f"  - {text_preview}")
+
+        if not user_found:
+            summary_lines.append(
+                f"  Note: Could not verify official account. Results may include similar names."
+            )
+
+        return Command(
+            update={
+                "social_media_posts": social_posts,
+                "messages": [
+                    ToolMessage(
+                        content="\n".join(summary_lines),
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+            }
+        )
+
+    except Exception as e:
+        error_msg = f"Failed to search Twitter: {type(e).__name__}"
+        return Command(
+            update={
+                "social_media_posts": [],
                 "messages": [ToolMessage(content=error_msg, tool_call_id=tool_call_id)],
             }
         )

@@ -13,24 +13,30 @@ The server uses the task_store module for Redis-backed task state management.
 """
 
 import os
-import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from api.models import (
     BackgroundSubmitRequest,
     BackgroundSubmitResponse,
     BackgroundStatusResponse,
+    TaskStatus,
 )
-from api.task_store import task_store, TaskStatus
+from api.task_store import task_store
 
 load_dotenv()
 
-executor = ThreadPoolExecutor(max_workers=4)
+TASK_TIMEOUT_SECONDS = int(os.getenv("TASK_TIMEOUT_SECONDS", "300"))
+
+
+def sanitize_error(error: Exception) -> str:
+    error_msg = str(error)
+    return error_msg[:500]
 
 
 def run_pipeline_task(task_id: str, city: str):
@@ -43,8 +49,10 @@ def run_pipeline_task(task_id: str, city: str):
         result = run_pipeline(city)
 
         task_store.update_task(task_id, TaskStatus.COMPLETED, result=result)
+    except TimeoutError:
+        task_store.update_task(task_id, TaskStatus.FAILED, error="Task timed out")
     except Exception as e:
-        task_store.update_task(task_id, TaskStatus.FAILED, error=str(e))
+        task_store.update_task(task_id, TaskStatus.FAILED, error=sanitize_error(e))
 
 
 @asynccontextmanager
@@ -56,11 +64,22 @@ app = FastAPI(title="NV Local API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "detail": str(exc) if os.getenv("DEBUG") == "true" else None,
+        },
+    )
 
 
 @app.post("/api/background/submit", response_model=BackgroundSubmitResponse)
@@ -94,7 +113,14 @@ async def get_task_status(task_id: str):
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    try:
+        task_store.redis.ping()
+        return {"status": "healthy", "redis": "connected"}
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "redis": "disconnected"},
+        )
 
 
 if __name__ == "__main__":

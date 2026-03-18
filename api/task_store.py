@@ -5,8 +5,6 @@ Redis as the storage backend. It handles creating, retrieving, and updating
 task status.
 
 Classes:
-    TaskStatus: Enum representing task lifecycle states (pending, processing,
-                completed, failed).
     TaskData: Data class holding task metadata and results.
     RedisTaskStore: Interface for Redis-based task CRUD operations.
 
@@ -16,17 +14,11 @@ The module exposes a singleton task_store instance for use by the API.
 import json
 import os
 import uuid
-from enum import Enum
 from typing import Any
 
 import redis
 
-
-class TaskStatus(str, Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+from api.models import TaskStatus
 
 
 class TaskData:
@@ -63,8 +55,13 @@ class TaskData:
 class RedisTaskStore:
     def __init__(self):
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        self.redis = redis.from_url(redis_url, decode_responses=True)
+        self._redis = redis.from_url(redis_url, decode_responses=True)
         self.key_prefix = "nvlocal:task:"
+        self.ttl_seconds = int(os.getenv("TASK_TTL_SECONDS", "86400"))
+
+    @property
+    def redis(self):
+        return self._redis
 
     def _get_key(self, task_id: str) -> str:
         return f"{self.key_prefix}{task_id}"
@@ -72,7 +69,9 @@ class RedisTaskStore:
     def create_task(self, city: str) -> TaskData:
         task_id = str(uuid.uuid4())
         task = TaskData(task_id=task_id, status=TaskStatus.PENDING)
-        self.redis.set(self._get_key(task_id), json.dumps(task.to_dict()))
+        self.redis.set(
+            self._get_key(task_id), json.dumps(task.to_dict()), ex=self.ttl_seconds
+        )
         return task
 
     def get_task(self, task_id: str) -> TaskData | None:

@@ -20,7 +20,10 @@ from config.system_prompts import legislation_finder_sys_prompt
 
 _agent = BaseReActAgent(
     state_schema=LegislationFinderState,
-    tools=[web_search, reliability_analysis],
+    tools=[
+        web_search,
+        reliability_analysis
+    ],
     system_prompt=lambda state: legislation_finder_sys_prompt.format(
         input_city=state.get("city", "Unknown"),
         last_week_date=(datetime.today() - timedelta(days=7)).strftime("%B %d, %Y"),

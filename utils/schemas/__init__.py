@@ -9,11 +9,10 @@ from utils.schemas.state import (
     BaseAgentState,
     ReliableLegislationSources,
     LegislationFinderState,
-    LegislationContent,
-    IndividualStatementSummary,
-    PoliticianStatementSummary,
     ChainData,
     PoliticalFigure,
+    PoliticalCommentary,
+    SocialMediaPost,
     PoliticalCommentaryState,
 )
 
@@ -24,10 +23,9 @@ __all__ = [
     "BaseAgentState",
     "ReliableLegislationSources",
     "LegislationFinderState",
-    "LegislationContent",
-    "IndividualStatementSummary",
-    "PoliticianStatementSummary",
     "ChainData",
     "PoliticalFigure",
+    "PoliticalCommentary",
+    "SocialMediaPost",
     "PoliticalCommentaryState",
 ]

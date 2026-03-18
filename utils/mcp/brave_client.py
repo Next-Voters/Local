@@ -18,6 +18,8 @@ import yaml
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from utils.mcp._shared import parse_mcp_result
+
 SMITHERY_BRAVE_SEARCH_URL = "https://server.smithery.ai/@thomasvan/mcp-brave-search/mcp"
 
 
@@ -75,34 +77,6 @@ async def get_brave_session():
         async with ClientSession(read, write) as session:
             await session.initialize()
             yield session
-
-
-def parse_mcp_result(result: Any) -> dict[str, Any]:
-    """Safely parse MCP tool result.
-
-    Args:
-        result: Raw result from MCP session.call_tool()
-
-    Returns:
-        Parsed dict or error dict
-    """
-    try:
-        if hasattr(result, "content") and result.content:
-            first_content = result.content[0]
-            if hasattr(first_content, "text"):
-                text_content = first_content.text
-            else:
-                return {"error": "Unexpected content type", "raw": str(result)}
-        elif hasattr(result, "text"):
-            text_content = result.text
-        else:
-            text_content = str(result) if result else "{}"
-
-        return json.loads(text_content)
-    except json.JSONDecodeError as e:
-        return {"error": f"JSON parse failed: {e}", "raw": text_content}
-    except Exception as e:
-        return {"error": f"Failed to parse result: {e}", "raw": str(result)}
 
 
 async def search_with_goggles(

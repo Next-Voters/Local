@@ -7,8 +7,6 @@ from utils.tools.political_figures import (
 )
 from utils.tools.wikidata import (
     search_entity,
-    search_property,
-    get_entity_properties,
     get_metadata,
     execute_sparql,
     get_org_classification,
@@ -19,8 +17,6 @@ __all__ = [
     "fetch_canadian_political_figures",
     "fetch_american_political_figures",
     "search_entity",
-    "search_property",
-    "get_entity_properties",
     "get_metadata",
     "execute_sparql",
     "get_org_classification",
