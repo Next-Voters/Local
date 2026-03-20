@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   build-and-push:
+    if: github.event.head_commit.message == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
