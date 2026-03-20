@@ -1,0 +1,291 @@
+```mermaid
+%%{
+  init: {
+    "theme": "base",
+    "themeVariables": {
+      "primaryColor": "#4f46e5",
+      "primaryTextColor": "#fff",
+      "primaryBorderColor": "#4f46e5",
+      "lineColor": "#6b7280",
+      "secondaryColor": "#10b981",
+      "tertiaryColor": "#f59e0b"
+    }
+  }
+}%%
+
+erDiagram
+    %%==============================
+    %% AUTH & USERS
+    %%==============================
+    users {
+        uuid id PK
+        string email UK
+        timestamp created_at
+    }
+
+    user_profiles {
+        uuid id PK
+        uuid user_id FK UK
+        string full_name
+        string avatar_url
+        timestamp updated_at
+    }
+
+    %%==============================
+    %% CORE ENTITIES
+    %%==============================
+    cities {
+        uuid id PK
+        string name
+        string state
+        string country
+        timestamp created_at
+        uuid owner_id FK
+    }
+
+    %%==============================
+    %% POLITICAL ENTITIES
+    %%==============================
+    political_figures {
+        uuid id PK
+        uuid city_id FK
+        string name
+        string position
+        string party
+        string jurisdiction
+        string source_url
+    }
+
+    political_commentary {
+        uuid id PK
+        uuid political_figure_id FK
+        uuid city_id FK
+        string source_url
+        text comment
+        float reliability_score
+        timestamp created_at
+    }
+
+    social_media_posts {
+        uuid id PK
+        uuid political_figure_id FK
+        string platform
+        string tweet_id
+        text text
+        timestamp created_at
+        jsonb engagement
+    }
+
+    %%==============================
+    %% LEGISLATION
+    %%==============================
+    legislation {
+        uuid id PK
+        uuid city_id FK
+        string title
+        text summary
+        text body
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    legislation_sources {
+        uuid id PK
+        uuid legislation_id FK
+        string url
+        string organization
+        float reliability_score
+    }
+
+    %%==============================
+    %% REPORTS
+    %%==============================
+    reports {
+        uuid id PK
+        uuid city_id FK
+        string title
+        text markdown_report
+        text summary
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %%==============================
+    %% TASKS
+    %%==============================
+    tasks {
+        uuid id PK
+        uuid city_id FK
+        uuid user_id FK
+        string status
+        text result
+        text error
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %%==============================
+    %% RELATIONSHIPS
+    %%==============================
+    users ||--o{ user_profiles : "profile"
+    users ||--o{ cities : "owns"
+    users ||--o{ tasks : "runs"
+    user_profiles ||--o{ cities : "follows"
+    
+    cities ||--o{ political_figures : "has"
+    cities ||--o{ legislation : "has"
+    cities ||--o{ reports : "generates"
+    cities ||--o{ tasks : "tracks"
+    
+    political_figures ||--o{ political_commentary : "makes"
+    political_figures ||--o{ social_media_posts : "posts"
+    
+    legislation ||--o{ legislation_sources : "sourced_from"
+```
+
+---
+
+# Supabase Database Schema Documentation
+
+## Table Definitions
+
+### Authentication & Users
+
+**users** - Supabase Auth users table (extends `auth.users`)
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | User ID from Supabase Auth |
+| email | string | UK, NOT NULL | User email address |
+| created_at | timestamp | NOT NULL | Account creation timestamp |
+
+**user_profiles** - Extended user profile data
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated profile ID |
+| user_id | uuid | FK → users.id, UK | Reference to auth user |
+| full_name | string | | User's display name |
+| avatar_url | string | | Profile image URL |
+| updated_at | timestamp | | Last profile update |
+
+---
+
+### Core Entities
+
+**cities** - Analyzed city/location records
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated city ID |
+| name | string | NOT NULL | City name |
+| state | string | NOT NULL | State/region |
+| country | string | NOT NULL | Country |
+| created_at | timestamp | NOT NULL | Creation timestamp |
+| owner_id | uuid | FK → users.id | City owner |
+
+---
+
+### Political Entities
+
+**political_figures** - Politicians associated with cities
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated ID |
+| city_id | uuid | FK → cities.id | Associated city |
+| name | string | NOT NULL | Politician name |
+| position | string | NOT NULL | Office/position held |
+| party | string | | Political party |
+| jurisdiction | string | | Governing jurisdiction |
+| source_url | string | | Reference URL |
+
+**political_commentary** - Quotes/statements from politicians
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated ID |
+| political_figure_id | uuid | FK → political_figures.id | Source politician |
+| city_id | uuid | FK → cities.id | Related city |
+| source_url | string | | Article/source link |
+| comment | text | NOT NULL | Quoted statement |
+| reliability_score | float | | 0-1 reliability rating |
+| created_at | timestamp | NOT NULL | Record creation |
+
+**social_media_posts** - Social media activity
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated ID |
+| political_figure_id | uuid | FK → political_figures.id | Author |
+| platform | string | NOT NULL | e.g., Twitter, Facebook |
+| tweet_id | string | | Platform post ID |
+| text | text | NOT NULL | Post content |
+| created_at | timestamp | | Post timestamp |
+| engagement | jsonb | | Likes, retweets, etc. |
+
+---
+
+### Legislation
+
+**legislation** - Local laws/ordinances
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated ID |
+| city_id | uuid | FK → cities.id | Related city |
+| title | string | NOT NULL | Bill/ordinance title |
+| summary | text | | Brief summary |
+| body | text | | Full text/content |
+| created_at | timestamp | NOT NULL | Record creation |
+| updated_at | timestamp | | Last update |
+
+**legislation_sources** - Reference sources for legislation
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated ID |
+| legislation_id | uuid | FK → legislation.id | Related legislation |
+| url | string | NOT NULL | Source URL |
+| organization | string | | Publishing org |
+| reliability_score | float | | Source reliability |
+
+---
+
+### Reports & Tasks
+
+**reports** - Generated analysis reports
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated ID |
+| city_id | uuid | FK → cities.id | Related city |
+| title | string | NOT NULL | Report title |
+| markdown_report | text | NOT NULL | Full markdown content |
+| summary | text | | Brief summary |
+| created_at | timestamp | NOT NULL | Creation timestamp |
+| updated_at | timestamp | | Last update |
+
+**tasks** - Background job tracking
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | uuid | PK | Auto-generated ID |
+| city_id | uuid | FK → cities.id | Related city |
+| user_id | uuid | FK → users.id | Requesting user |
+| status | string | NOT NULL | pending/processing/completed/failed |
+| result | text | | Task output result |
+| error | text | | Error message if failed |
+| created_at | timestamp | NOT NULL | Creation timestamp |
+| updated_at | timestamp | | Last status update |
+
+---
+
+## Index Recommendations
+
+```sql
+-- Performance indexes
+CREATE INDEX idx_political_figures_city ON political_figures(city_id);
+CREATE INDEX idx_legislation_city ON legislation(city_id);
+CREATE INDEX idx_reports_city ON reports(city_id);
+CREATE INDEX idx_tasks_user ON tasks(user_id);
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_political_commentary_figure ON political_commentary(political_figure_id);
+```
+
+## RLS Policies (Row Level Security)
+
+All tables should enable RLS and create policies:
+- Users can only read/write their own data
+- Public read for cities, legislation, political_figures (read-only)
+- Reports can be public or private based on user preference
