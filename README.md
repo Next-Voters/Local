@@ -1,177 +1,110 @@
 # Next Voters Local
 
-> **Hold your local representative accountable to their actions**  
-> An intelligent multi-agent deep research system that investigates municipal legislation, extracts politician positions, and presents factual, bias-resistant information to voters.
+NV Local is a Python CLI that runs a small, multi-step research pipeline per city:
 
-<div align="center">
+1) discover recent municipal legislation sources
+2) fetch the linked pages and extract text
+3) turn the text into dense notes and a structured summary
+4) format a markdown report
+5) optionally email the report to subscribers (Supabase + SMTP)
 
-[![GitHub License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+Docs:
+- `docs/ARCHITECTURE.md`
+- `docs/OPERATIONS.md`
+- `CONTRIBUTING.md`
 
-[Features](#-features) • [Getting Started](#-getting-started) • [How It Works](#-how-it-works) • [Architecture](#-architecture) • [Contributing](#-contributing)
+## Features
 
-</div>
+- Multi-city execution (one pipeline per city, run concurrently)
+- Legislation discovery via Brave Search (MCP) with Goggles rules
+- Source vetting via Wikidata lookups + an LLM-based classifier
+- Markdown report output (stdout and/or `-o` to file)
+- Optional email delivery (Supabase subscription list + SMTP)
 
----
+## Architecture At A Glance
 
-## 🎯 Features
+- Entry points: `python main.py` (plain stdout) or `python run_cli_main.py` (Rich console)
+- Pipeline: `pipelines/nv_local.py` composes a fixed chain of nodes
+- Agents: LangGraph ReAct-style agents for legislation discovery and political commentary
+- LLM steps: note-taking and summary writing are single-call LLM transforms
+- External services: OpenAI (LLM), Brave Search (web search), Wikidata (org classification), `markdown.new` (HTML -> markdown-ish extraction), optional Supabase + SMTP
 
-- **🔍 Intelligent Legislation Discovery** — Autonomous web search for recent municipal legislation with Wikidata-backed source validation
-- **📊 Bias-Resistant Analysis** — Five-layer debiasing strategy grounded in academic research (Gallegos et al., 2024; Phute et al., 2023)
-- **🗳️ Politician Position Extraction** — Scrapes and analyzes politician statements, press releases, and voting records
-- **🛡️ Identity Protection** — Anonymizes politician names before bias analysis, ensuring fair rhetoric evaluation
-- **📝 Factual Summaries** — Generates clean, digestible summaries backed by authoritative sources
-- **⚙️ Modular Agent System** — Composable ReAct agents with clear separation of concerns
-- **🌐 Wikidata Integration** — Validates source reliability using structured knowledge about organizations
+## Prerequisites
 
----
+- Python 3.10+
+- An OpenAI API key (used by `langchain-openai`)
+- A Brave Search API key (used via Smithery-hosted MCP)
+- Optional: Twitter API credentials (for the social-media tool)
+- Optional: Supabase + SMTP credentials (to email reports)
 
-## 🚀 Quick Start
+## Quickstart
 
-### Prerequisites
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-- **Python** 3.10+
-- **OpenAI API Key** (for GPT-4, GPT-4o-mini)
-- **Tavily API Key** (for web search)
-- **Git**
+Configure environment variables:
 
-### Installation
+```bash
+cp .env.example .env
+```
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/hemitoncode/Next-Voters-Local.git
-   cd Next-Voters-Local
-   ```
+Notes:
+- `python main.py` does not call `load_dotenv()`. Export env vars in your shell, or use the Rich wrapper (`python run_cli_main.py`) which loads `.env`.
+- The default cities are hard-coded in `data/__init__.py` as `SUPPORTED_CITIES`.
 
-2. **Create a virtual environment**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+Run:
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+python main.py
+```
 
-4. **Configure API keys**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your OpenAI and Tavily API keys
-   ```
+Save output:
 
-5. **Run the system**
-   ```bash
-   python main.py
-   ```
-   Enter a city name (e.g., "Austin", "Toronto") to investigate recent municipal legislation.
+```bash
+python main.py -o out/report.md
+```
 
----
-### Key Design Principles
+Quiet mode:
 
-1. **Minimal Agency** — ReAct agents only where unpredictable targets or retry loops exist such as during legislative activity discovery phase. Everything else is a deterministic LLM call or pure code.
-2. **No Supervision** — Sequential DAG, no supervisor node. Routing is always the same; routing costs would waste API calls.
-3. **Judge Isolation** — The Judge never sees real names, never sees graph state. Its narrow scope is its strength.
-4. **Source Authority** — Only `.gov`, `.gc.ca`, and Wikidata-validated organizations pass reliability checks. No blogs, no opinion sites, no partisan media.
-5. **Cite or Reject** — Every claim must cite its source. Unsupported inferences are rejected.
+```bash
+python main.py -q -o out/report.md
+```
 
-### Technology Stack
+## Configuration
 
-| Component | Technology |
-|-----------|-----------|
-| **Orchestration** | LangChain Expression Language |
-| **LLM Provider** | OpenAI (GPT-4, GPT-4o-mini) |
-| **LLM Framework** | LangChain 1.1+ |
-| **Web Search** | Tavily Search API |
-| **Organization Lookup** | Wikidata REST API + SPARQL |
-| **Web Scraping** | Generated Python code (REPL sandbox) |
-| **NER / Anonymization** | spaCy (or equivalent) |
-| **Config** | python-dotenv |
-| **HTTP Client** | httpx |
+Required for the core pipeline:
 
----
+- `OPENAI_API_KEY`: OpenAI key used by `langchain-openai`
+- `BRAVE_SEARCH_API_KEY`: used by `utils/mcp/brave_client.py` to call the Smithery Brave Search MCP server
 
-## 🛡️ Bias Resistance
+Optional:
 
-Next Voters Local implements **two core safeguards** against bias:
+- `TWITTER_API_KEY`, `TWITTER_BEARER_TOKEN`: enable the Twitter/X MCP client used by the political commentary tools
+- `SUPABASE_URL`, `SUPABASE_KEY`: used to load subscriber emails from the `subscriptions` table
+- `SMTP_EMAIL`, `SMTP_APP_PASSWORD`: used to send HTML emails via SMTP (default host: `smtp.gmail.com:587`)
 
-| Safeguard | Where | Method |
-|-----------|-------|--------|
-| **LLM-as-a-Defense: Name Anonymizer** | Anonymizer (LLM) | Use language model to identify & replace politician names before any analysis |
-| **Source Reliability Measure** | Legislation Finder | Validate organizations via Wikidata to ensure only unbiased, authoritative sources are used |
+## Common Tasks
 
-### Implementation
+- Change the cities the CLI runs: edit `data/__init__.py` (`SUPPORTED_CITIES`)
+- Build and run the container:
+  ```bash
+  docker build -t next-voters-local -f docker/Dockerfile .
+  docker run --rm \
+    -e OPENAI_API_KEY \
+    -e BRAVE_SEARCH_API_KEY \
+    next-voters-local
+  ```
 
-- **Name Anonymization** — All politician identities are removed before rhetoric analysis. This prevents the LLM from making identity-based inferences.
-- **Source Validation** — Every source is checked against Wikidata for organizational classification. Only `.gov`, `.gc.ca`, and nonpartisan organizations pass through. No blogs, opinion sites, or politically-aligned media.
+## Troubleshooting
 
-### Responsible Use
+- Brave search failures: ensure `BRAVE_SEARCH_API_KEY` is set; the error originates in `utils/mcp/brave_client.py`
+- OpenAI auth errors: ensure `OPENAI_API_KEY` is set in the environment seen by the process
+- Empty or thin reports: the pipeline only summarizes what it can fetch; some sites may block scraping or fail via `markdown.new`
+- Email not sent: the email step is skipped unless all of `SMTP_EMAIL`, `SMTP_APP_PASSWORD`, `SUPABASE_URL`, `SUPABASE_KEY` are set
 
-This system is designed for **informational purposes only**. Users should:
-- ✅ Verify claims using the provided source URLs
-- ✅ Cross-reference multiple sources before forming opinions
-- ✅ Understand this tool supplements, not replaces, civic engagement
-- ❌ Not rely on a single summary for critical decisions
+## License
 
-## 📝 Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. **Fork** the repository
-2. **Create a feature branch**: `git checkout -b feature/your-feature-name`
-3. **Make your changes** with clear commit messages
-4. **Test** locally: `python main.py`
-5. **Submit a Pull Request** with a description of changes
-
-#### ⚠️ Note: You are not entitled to payment for your services. You are also not affiliated with Next Voters, and you may not claim any titles of employment within the organization. 
-
-### Reporting Issues
-
-Found a bug? Please open an [issue](https://github.com/hemitoncode/Next-Voters-Local/issues) with:
-- Clear description of the problem
-- Steps to reproduce
-- Expected vs. actual behavior
-- Python version & OS
-
----
-
-## 📚 References & Inspiration
-
-This project is informed by academic research on LLM bias and debiasing:
-
-- **Gallegos et al., 2024** — [Bias and Fairness in Large Language Models: A Survey](https://arxiv.org/abs/2402.01981) — Two-pass self-debiasing strategy (Layer 3)
-- **Phute et al., 2023** — [LLM Self Defense](https://arxiv.org/abs/2308.07308) — Judge-as-LLM design (Layer 4)
-- **OpenNorth** — [Canadian municipal representative data](https://opennorth.ca/)
-
----
-
-## 🤝 Acknowledgments
-
-- Built with [LangGraph](https://langchain-ai.github.io/langgraph/) for orchestration
-- Source validation powered by [Wikidata](https://www.wikidata.org/)
-- Search via [Tavily](https://www.tavily.com/)
-- LLM backbone: [OpenAI](https://openai.com/)
-
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE) — see the LICENSE file for details.
-
----
-
-## 💬 Contact & Support
-
-- **Issues & Discussions**: [GitHub Issues](https://github.com/hemitoncode/Next-Voters-Local/issues)
-- **Questions?** Check [CLAUDE.md](/.claude/CLAUDE.md) for development documentation
-
----
-
-<div align="center">
-
-**Empowering voters with factual, bias-resistant information about local legislation.**
-
-Made with ❤️ by Next Voters
-
-</div>
+MIT: see `LICENSE`.

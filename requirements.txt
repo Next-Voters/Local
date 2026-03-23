@@ -5,9 +5,6 @@ mcp
 httpx
 langchain-core
 rich
-fastapi
-uvicorn
-redis
 pydantic
 requests
 pyyaml

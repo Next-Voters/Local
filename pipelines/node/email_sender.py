@@ -69,6 +69,18 @@ def render_template(html_content: str) -> str:
     return template.replace("{{CONTENT}}", html_content)
 
 
+EMAIL_REQUIRED_ENV = (
+    "SMTP_EMAIL",
+    "SMTP_APP_PASSWORD",
+    "SUPABASE_URL",
+    "SUPABASE_KEY",
+)
+
+
+def _is_email_configured() -> bool:
+    return all(os.environ.get(env_var) for env_var in EMAIL_REQUIRED_ENV)
+
+
 def get_subscribers() -> list[str]:
     supabase_url = os.environ["SUPABASE_URL"]
     supabase_key = os.environ["SUPABASE_KEY"]
@@ -160,6 +172,9 @@ def save_failures(failures: list[dict]):
 
 
 def send_email_to_subscribers(inputs: ChainData) -> ChainData:
+    if not _is_email_configured():
+        return inputs
+
     markdown_report = inputs.get("markdown_report")
 
     if not markdown_report:

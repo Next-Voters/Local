@@ -1,8 +1,8 @@
 """CLI wrapper script for NV Local voter education tool.
 
 This module is a simple entry point script that runs the CLI main function.
-It displays the welcome message, system_prompts for city input, executes the pipeline,
-and renders the resulting markdown report.
+It displays the welcome message, executes the multi-city pipeline,
+and renders the resulting markdown report sections.
 
 Usage:
     python run_cli_main.py
@@ -17,8 +17,12 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 from rich import box
 
-from pipelines.nv_local import chain
-from utils.cli import show_welcome, LOG
+from data import SUPPORTED_CITIES
+from pipelines.nv_local import (
+    render_city_reports_markdown,
+    run_pipelines_for_cities,
+)
+from utils.cli import show_welcome
 
 load_dotenv()
 
@@ -27,12 +31,9 @@ console = Console()
 if __name__ == "__main__":
     show_welcome()
 
-    city = input("\n➜ Enter city name: ")
-
     console.print()
-    result = chain.invoke({"city": city})
-
-    report = result.get("markdown_report")
+    results_by_city = run_pipelines_for_cities(SUPPORTED_CITIES)
+    report = render_city_reports_markdown(results_by_city, SUPPORTED_CITIES)
 
     console.print()
     console.print(

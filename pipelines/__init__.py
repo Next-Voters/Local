@@ -1,4 +1,11 @@
-from pipelines.nv_local import chain, run_pipeline
+from data import SUPPORTED_CITIES
+from pipelines.nv_local import (
+    chain,
+    render_city_reports_markdown,
+    run_markdown_report,
+    run_pipeline,
+    run_pipelines_for_cities,
+)
 from pipelines.node.legislation_finder import (
     run_legislation_finder,
     legislation_finder_chain,
@@ -18,7 +25,11 @@ from pipelines.node.email_sender import send_email_to_subscribers
 
 __all__ = [
     "chain",
+    "SUPPORTED_CITIES",
     "run_pipeline",
+    "run_markdown_report",
+    "run_pipelines_for_cities",
+    "render_city_reports_markdown",
     "run_legislation_finder",
     "run_content_retrieval",
     "research_note_taker",
