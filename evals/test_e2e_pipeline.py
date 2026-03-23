@@ -62,13 +62,13 @@ class TestEndToEndPipeline:
 
     @patch("pipelines.nv_local.chain.invoke")
     def test_pipeline_handles_multiple_cities(self, mock_invoke: MagicMock):
-        """Test pipeline handles multiple cities."""
+        """Test runner handles multiple cities."""
         cities = ["Toronto", "New York City", "San Diego"]
         mock_invoke.side_effect = [
             {"city": city, "markdown_report": f"# {city} Report"} for city in cities
         ]
 
-        from pipelines.nv_local import run_pipelines_for_cities
+        from runners.run_container_job import run_pipelines_for_cities
 
         results = run_pipelines_for_cities(cities)
 
@@ -325,7 +325,7 @@ class TestSupportedCities:
 class TestPipelineRendering:
     """Test pipeline output rendering."""
 
-    @patch("pipelines.nv_local.run_pipelines_for_cities")
+    @patch("runners.run_container_job.run_pipelines_for_cities")
     def test_render_city_reports(
         self,
         mock_run: MagicMock,
@@ -337,14 +337,14 @@ class TestPipelineRendering:
             "NYC": {"markdown_report": "# NYC Report"},
         }
 
-        from pipelines.nv_local import render_city_reports_markdown
+        from runners.run_container_job import render_city_reports_markdown
 
         result = render_city_reports_markdown(mock_run.return_value)
 
         assert "## Toronto" in result
         assert "## NYC" in result
 
-    @patch("pipelines.nv_local.run_pipelines_for_cities")
+    @patch("runners.run_container_job.run_pipelines_for_cities")
     def test_render_with_errors(self, mock_run: MagicMock):
         """Test rendering with pipeline errors."""
         mock_run.return_value = {
@@ -354,7 +354,7 @@ class TestPipelineRendering:
             },
         }
 
-        from pipelines.nv_local import render_city_reports_markdown
+        from runners.run_container_job import render_city_reports_markdown
 
         result = render_city_reports_markdown(mock_run.return_value)
 

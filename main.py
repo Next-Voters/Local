@@ -1,7 +1,7 @@
-"""Entrypoint shim that delegates to the NV Local pipeline runner."""
+"""Entrypoint shim that delegates to the NV Local multi-city runner."""
 
-from pipelines.nv_local import main as pipeline_main
+from runners.run_container_job import main as runner_main
 
 
 if __name__ == "__main__":
-    pipeline_main()
+    raise SystemExit(runner_main())

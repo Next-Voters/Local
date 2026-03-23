@@ -18,7 +18,7 @@ from rich.markdown import Markdown
 from rich import box
 
 from data import SUPPORTED_CITIES
-from pipelines.nv_local import (
+from runners.run_container_job import (
     render_city_reports_markdown,
     run_pipelines_for_cities,
 )
