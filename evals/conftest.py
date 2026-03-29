@@ -7,7 +7,7 @@ to enable isolated unit testing of components.
 from __future__ import annotations
 
 import json
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
@@ -452,9 +452,6 @@ def patch_wikidata(monkeypatch: pytest.MonkeyPatch) -> None:
         }
 
     monkeypatch.setattr(
-        "agents.political_commentry_finder.political_figure_finder.invoke",
+        "agents.political_commentary_finder.political_figure_finder.invoke",
         mock_find,
     )
-
-
-from typing import Optional

@@ -5,7 +5,7 @@ from utils.schemas import ChainData
 
 def report_formatter(inputs: ChainData) -> ChainData:
     legislation_summary = inputs.get("legislation_summary")
-    public_statements = inputs.get("politician_public_statements")
+    public_statements = inputs.get("politician_public_statements") or []
 
     if legislation_summary is None:
         return {

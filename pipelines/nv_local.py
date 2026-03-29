@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from pipelines.node.content_retrieval import content_retrieval_chain
-from pipelines.node.email_sender import send_email_to_subscribers
+from pipelines.node.email_sender import email_sender_chain
 from pipelines.node.legislation_finder import legislation_finder_chain
 from pipelines.node.note_taker import note_taker_chain
 from pipelines.node.politician_commentary import politician_commentary_chain
@@ -18,19 +18,19 @@ from data import SUPPORTED_CITIES
 chain = (
     legislation_finder_chain
     | content_retrieval_chain
-    | note_taker_chain
-    | summary_writer_chain
+    | note_taker_chain.with_retry()
+    | summary_writer_chain.with_retry()
     | politician_commentary_chain
     | report_formatter_chain
-    | send_email_to_subscribers
+    | email_sender_chain
 )
 
 
 def run_pipeline(city: str) -> dict[str, Any]:
     """Execute the LangGraph chain for the given city."""
 
-    pipeline_result = chain.invoke({"city": city})
-    return pipeline_result.get("markdown_report", "")
+    return chain.invoke({"city": city})
+
 
 def main() -> None:
     """Entry point that runs the pipeline for one city."""
@@ -56,7 +56,8 @@ def main() -> None:
 
     args = parser.parse_args()
     print(f"Running NV Local pipeline for {args.city}...")
-    report = run_pipeline(args.city)
+    result = run_pipeline(args.city)
+    report = result.get("markdown_report", "")
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

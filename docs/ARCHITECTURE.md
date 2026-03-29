@@ -43,11 +43,11 @@ Code layout (high level):
 
 5) `pipelines/node/politician_commentary.py`
 
-- Calls the ReAct agent in `agents/political_commentry_finder.py`
+- Calls the ReAct agent in `agents/political_commentary_finder.py`
 - Agent tools:
-  - `tools/political_commentry_finder.py:political_figure_finder` (OpenStreetMap Nominatim + OpenNorth Represent API for CA, WeVote API for US)
-  - `tools/political_commentry_finder.py:search_political_commentary` (Brave Search + per-page LLM extraction)
-  - `tools/political_commentry_finder.py:search_political_social_media` (Twitter MCP)
+  - `tools/political_commentary_finder.py:political_figure_finder` (OpenStreetMap Nominatim + OpenNorth Represent API for CA, WeVote API for US)
+  - `tools/political_commentary_finder.py:search_political_commentary` (Brave Search + per-page LLM extraction)
+  - `tools/political_commentary_finder.py:search_political_social_media` (Twitter MCP)
 - Output: `politician_public_statements`
 
 6) `pipelines/node/report_formatter.py`

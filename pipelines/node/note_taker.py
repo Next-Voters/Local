@@ -1,10 +1,15 @@
+from functools import lru_cache
+
 from langchain_core.runnables import RunnableLambda
 
 from utils.schemas import ChainData
 from utils.llm import get_llm
 from config.system_prompts import note_taker_sys_prompt
 
-model = get_llm()
+
+@lru_cache(maxsize=1)
+def _get_model():
+    return get_llm()
 
 
 def research_note_taker(inputs: ChainData) -> ChainData:
@@ -17,7 +22,7 @@ def research_note_taker(inputs: ChainData) -> ChainData:
 
     system_prompt = note_taker_sys_prompt.format(raw_content=raw_content)
 
-    ai_generated_notes = model.invoke(
+    ai_generated_notes = _get_model().invoke(
         [{"role": "system", "content": system_prompt}],
     )
 

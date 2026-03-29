@@ -1,10 +1,15 @@
+from functools import lru_cache
+
 from langchain_core.runnables import RunnableLambda
 
 from utils.schemas import ChainData, WriterOutput
 from utils.llm import get_structured_llm
 from config.system_prompts import writer_sys_prompt
 
-model = get_structured_llm(WriterOutput)
+
+@lru_cache(maxsize=1)
+def _get_model():
+    return get_structured_llm(WriterOutput)
 
 
 def research_summary_writer(inputs: ChainData) -> ChainData:
@@ -12,7 +17,7 @@ def research_summary_writer(inputs: ChainData) -> ChainData:
 
     system_prompt = writer_sys_prompt.format(notes=notes)
 
-    ai_generated_summary: WriterOutput = model.invoke(
+    ai_generated_summary: WriterOutput = _get_model().invoke(
         [{"role": "system", "content": system_prompt}],
     )
 

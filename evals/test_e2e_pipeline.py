@@ -242,13 +242,13 @@ class TestPipelineOutput:
 class TestPipelineIntegration:
     """Full integration tests for pipeline."""
 
-    @patch("agents.political_commentry_finder.political_commentry_agent.invoke")
-    @patch("pipelines.node.summary_writer.model.invoke")
+    @patch("agents.political_commentary_finder.political_commentary_agent.invoke")
+    @patch("pipelines.node.summary_writer._get_model")
     @patch("tools.legislation_finder.web_search.invoke")
     def test_full_pipeline_with_mocks(
         self,
         mock_search: MagicMock,
-        mock_llm: MagicMock,
+        mock_model: MagicMock,
         mock_political: MagicMock,
         sample_legislation_sources: list[dict],
         sample_writer_output: dict[str, Any],
@@ -260,7 +260,7 @@ class TestPipelineIntegration:
         mock_search.return_value = {
             "web": {"results": [{"title": "Test", "url": "https://test.com"}]}
         }
-        mock_llm.return_value = WriterOutput(
+        mock_model.return_value.invoke.return_value = WriterOutput(
             title=sample_writer_output["title"],
             summary=sample_writer_output["summary"],
             body=sample_writer_output["body"],

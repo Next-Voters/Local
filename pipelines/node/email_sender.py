@@ -3,12 +3,17 @@ import os
 import smtplib
 import ssl
 import time
+import queue
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
+from email.mime.text import MIMEText
+from functools import lru_cache
 from threading import Lock
 
 import markdown
 from supabase import create_client, Client
+
+from langchain_core.runnables import RunnableLambda
 
 from utils.schemas.state import ChainData
 
@@ -18,8 +23,7 @@ class SMTPConnectionPool:
         self.pool_size = pool_size
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
-        self.connections: list[smtplib.SMTP] = []
-        self.lock = Lock()
+        self._pool: queue.Queue[smtplib.SMTP] = queue.Queue(maxsize=pool_size)
         self._init_pool()
 
     def _create_connection(self) -> smtplib.SMTP:
@@ -33,25 +37,30 @@ class SMTPConnectionPool:
 
     def _init_pool(self):
         for _ in range(self.pool_size):
-            self.connections.append(self._create_connection())
+            self._pool.put(self._create_connection())
 
-    def get_connection(self) -> smtplib.SMTP:
-        with self.lock:
-            return self.connections.pop()
+    def get_connection(self, timeout=30) -> smtplib.SMTP:
+        return self._pool.get(timeout=timeout)
 
     def return_connection(self, conn: smtplib.SMTP):
-        with self.lock:
-            self.connections.append(conn)
+        try:
+            self._pool.put_nowait(conn)
+        except queue.Full:
+            try:
+                conn.quit()
+            except Exception:
+                pass
 
     def close_all(self):
-        with self.lock:
-            for conn in self.connections:
-                try:
-                    conn.quit()
-                except:
-                    pass
+        while not self._pool.empty():
+            try:
+                conn = self._pool.get_nowait()
+                conn.quit()
+            except Exception:
+                pass
 
 
+@lru_cache(maxsize=1)
 def load_template() -> str:
     template_path = os.path.join(
         os.path.dirname(__file__), "..", "templates", "email_report.html"
@@ -109,16 +118,12 @@ def send_single_email(
     try:
         conn = pool.get_connection()
 
-        msg = f"""From: {os.environ["SMTP_EMAIL"]}
-To: {email}
-Subject: {subject}
-MIME-Version: 1.0
-Content-Type: text/html; charset=utf-8
+        msg = MIMEText(html_body, "html", "utf-8")
+        msg["From"] = os.environ["SMTP_EMAIL"]
+        msg["To"] = email
+        msg["Subject"] = subject
 
-{html_body}
-"""
-
-        conn.sendmail(os.environ["SMTP_EMAIL"], email, msg)
+        conn.sendmail(os.environ["SMTP_EMAIL"], email, msg.as_string())
 
         time.sleep(0.5)
 
@@ -129,7 +134,7 @@ Content-Type: text/html; charset=utf-8
                 {
                     "email": email,
                     "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
         return False
@@ -206,3 +211,6 @@ def send_email_to_subscribers(inputs: ChainData) -> ChainData:
     save_failures(failures)
 
     return inputs
+
+
+email_sender_chain = RunnableLambda(send_email_to_subscribers)

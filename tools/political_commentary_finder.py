@@ -6,9 +6,10 @@ All tools return Command objects to update LangGraph state.
 Uses the official Brave Search MCP server (via Smithery) with Goggles.
 """
 
+from functools import lru_cache
 from typing import Annotated
 
-import requests
+import httpx
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
@@ -24,7 +25,10 @@ from utils.mcp.brave_client import search_political_content, extract_search_resu
 from utils.mcp.twitter_client import search_user_and_tweets
 from utils.llm import get_mini_llm
 
-mini_model = get_mini_llm()
+
+@lru_cache(maxsize=1)
+def _get_mini_model():
+    return get_mini_llm()
 
 
 def fetch_page_content(url: str) -> str:
@@ -34,7 +38,7 @@ def fetch_page_content(url: str) -> str:
             "User-Agent": "PoliticalCommentaryAgent/1.0",
             "Accept": "text/html,application/xhtml+xml",
         }
-        response = requests.get(url, headers=headers, timeout=15)
+        response = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
         response.raise_for_status()
         return response.text[:15000]
     except Exception as e:
@@ -46,7 +50,7 @@ def extract_commentary_with_llm(url: str, politician: str, query: str) -> str:
     page_content = fetch_page_content(url)
     system_prompt = comment_extraction_prompt.format(politician=politician, query=query)
     try:
-        response = mini_model.invoke(
+        response = _get_mini_model().invoke(
             [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Page content:\n\n{page_content}"},

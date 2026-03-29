@@ -56,14 +56,14 @@ class TestSummaryWriter:
         assert minimal_output.summary is None
         assert minimal_output.body is None
 
-    @patch("pipelines.node.summary_writer.model.invoke")
+    @patch("pipelines.node.summary_writer._get_model")
     def test_summary_writer_produces_valid_schema(
         self,
-        mock_invoke: MagicMock,
+        mock_model: MagicMock,
         sample_legislation_notes: str,
     ):
         """Test that summary writer produces valid WriterOutput."""
-        mock_invoke.return_value = WriterOutput(
+        mock_model.return_value.invoke.return_value = WriterOutput(
             title="Toronto Legislation Update",
             summary="City Council passed climate and housing legislation.",
             body="- Climate Action: 65% GHG reduction\n- Housing: 20% affordable units",
@@ -82,13 +82,13 @@ class TestSummaryWriter:
         assert summary.summary is not None
         assert summary.body is not None
 
-    @patch("pipelines.node.summary_writer.model.invoke")
+    @patch("pipelines.node.summary_writer._get_model")
     def test_summary_writer_handles_no_content(
         self,
-        mock_invoke: MagicMock,
+        mock_model: MagicMock,
     ):
         """Test that summary writer handles empty notes gracefully."""
-        mock_invoke.return_value = WriterOutput(
+        mock_model.return_value.invoke.return_value = WriterOutput(
             title="No Content",
             summary=None,
             body=None,
@@ -222,12 +222,12 @@ Brief summary of the legislation.""",
 class TestSummaryWriterEdgeCases:
     """Edge case tests for summary writer."""
 
-    @patch("pipelines.node.summary_writer.model.invoke")
-    def test_very_long_notes(self, mock_invoke: MagicMock):
+    @patch("pipelines.node.summary_writer._get_model")
+    def test_very_long_notes(self, mock_model: MagicMock):
         """Test handling of very long input notes."""
         long_notes = "Point " * 1000
 
-        mock_invoke.return_value = WriterOutput(
+        mock_model.return_value.invoke.return_value = WriterOutput(
             title="Long Document Summary",
             summary="Concise summary of lengthy content.",
             body="- " + "\n- ".join([f"Point {i}" for i in range(50)]),
@@ -241,10 +241,10 @@ class TestSummaryWriterEdgeCases:
 
         assert result["legislation_summary"] is not None
 
-    @patch("pipelines.node.summary_writer.model.invoke")
-    def test_unicode_content(self, mock_invoke: MagicMock):
+    @patch("pipelines.node.summary_writer._get_model")
+    def test_unicode_content(self, mock_model: MagicMock):
         """Test handling of unicode characters."""
-        mock_invoke.return_value = WriterOutput(
+        mock_model.return_value.invoke.return_value = WriterOutput(
             title="Café and Restaurant Regulations",
             summary="New regulations for café outdoor seating in Toronto.",
             body="- Unicode: café, naïve, résumé\n- Special chars: © ® ™",
@@ -259,8 +259,8 @@ class TestSummaryWriterEdgeCases:
         assert result["legislation_summary"] is not None
         assert "café" in result["legislation_summary"].title.lower()
 
-    @patch("pipelines.node.summary_writer.model.invoke")
-    def test_no_legislation_patterns(self, mock_invoke: MagicMock):
+    @patch("pipelines.node.summary_writer._get_model")
+    def test_no_legislation_patterns(self, mock_model: MagicMock):
         """Test that 'no legislation' patterns are handled."""
         no_content_patterns = [
             "No Content",
@@ -274,7 +274,7 @@ class TestSummaryWriterEdgeCases:
         from utils.schemas import ChainData
 
         for pattern in no_content_patterns:
-            mock_invoke.return_value = WriterOutput(
+            mock_model.return_value.invoke.return_value = WriterOutput(
                 title=pattern,
                 summary="No content",
                 body="No body",

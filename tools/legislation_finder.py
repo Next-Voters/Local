@@ -7,6 +7,7 @@ Uses the official Brave Search MCP server (via Smithery) with Goggles.
 """
 
 import json
+from functools import lru_cache
 from typing import Annotated, Any
 
 from langchain_core.messages import ToolMessage
@@ -20,7 +21,10 @@ from utils.mcp.brave_client import search_legislation, extract_search_results
 from utils.json_utils import extract_json
 from utils.llm import get_mini_llm
 
-mini_model = get_mini_llm()
+
+@lru_cache(maxsize=1)
+def _get_mini_model():
+    return get_mini_llm()
 
 
 @tool
@@ -168,7 +172,7 @@ def reliability_analysis(
         input_city=city, sources_with_context=context_text
     )
 
-    judgment_response = mini_model.invoke(
+    judgment_response = _get_mini_model().invoke(
         [
             {"role": "system", "content": judgment_prompt},
             {

@@ -1,6 +1,7 @@
 """Shared tools available to all ReAct agents."""
 
 import json
+from functools import lru_cache
 from typing import Annotated
 
 from langchain_core.messages import BaseMessage, ToolMessage
@@ -12,7 +13,10 @@ from utils.schemas import ReflectionEntry
 from utils.llm import get_mini_llm
 from config.system_prompts import reflection_prompt
 
-_mini_model = get_mini_llm()
+
+@lru_cache(maxsize=1)
+def _get_mini_model():
+    return get_mini_llm()
 
 
 @tool
@@ -30,7 +34,7 @@ def reflection_tool(
     formatted_prompt = reflection_prompt.format(
         conversation_summary=conversation_summary,
     )
-    response = _mini_model.invoke(
+    response = _get_mini_model().invoke(
         [
             {"role": "system", "content": formatted_prompt},
             {

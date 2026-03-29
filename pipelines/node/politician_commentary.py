@@ -4,11 +4,11 @@ from utils.schemas import ChainData
 
 
 def run_politician_commentary_finder(inputs: ChainData) -> ChainData:
-    from agents.political_commentry_finder import political_commentry_agent
+    from agents.political_commentary_finder import political_commentary_agent
 
     city = inputs.get("city", "Unknown")
 
-    agent_result = political_commentry_agent.invoke({"city": city})
+    agent_result = political_commentary_agent.invoke({"city": city})
 
     political_commentary = agent_result.get("political_commentary", [])
 
