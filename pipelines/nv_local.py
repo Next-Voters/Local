@@ -29,17 +29,11 @@ chain = (
 def run_pipeline(city: str) -> dict[str, Any]:
     """Execute the LangGraph chain for the given city."""
 
-    return chain.invoke({"city": city})
-
-
-def run_markdown_report(city: str) -> str:
-    """Return the markdown report produced by the pipeline."""
-
-    return run_pipeline(city).get("markdown_report", "")
-
+    pipeline_result = chain.invoke({"city": city})
+    return pipeline_result.get("markdown_report", "")
 
 def main() -> None:
-    """CLI entry point that runs the pipeline for one city."""
+    """Entry point that runs the pipeline for one city."""
 
     parser = argparse.ArgumentParser(description="Run the NV Local research pipeline.")
     parser.add_argument(
@@ -62,7 +56,7 @@ def main() -> None:
 
     args = parser.parse_args()
     print(f"Running NV Local pipeline for {args.city}...")
-    report = run_markdown_report(args.city)
+    report = run_pipeline(args.city)
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -70,7 +64,3 @@ def main() -> None:
 
     if not args.quiet:
         print(report)
-
-
-if __name__ == "__main__":
-    main()
