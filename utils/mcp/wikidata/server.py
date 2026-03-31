@@ -9,10 +9,14 @@ Usage: python -m utils.mcp.wikidata.server
 
 import json
 import os
+import sys
+from pathlib import Path
 
 import httpx
 from fastmcp import FastMCP
 from openai import OpenAI
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from config.system_prompts import reliability_judgment_prompt
 

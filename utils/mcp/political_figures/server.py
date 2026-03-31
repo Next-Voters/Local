@@ -10,6 +10,8 @@ Usage: python -m utils.mcp.political_figures.server
 import logging
 import os
 import re
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -17,6 +19,8 @@ import requests
 import tweepy
 from fastmcp import FastMCP
 from openai import OpenAI
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from config.system_prompts.political_commentary import comment_extraction_prompt
 
