@@ -244,7 +244,7 @@ class TestPipelineIntegration:
 
     @patch("agents.political_commentary_finder.political_commentary_agent.invoke")
     @patch("pipelines.node.summary_writer._get_model")
-    @patch("tools.legislation_finder.web_search.invoke")
+    @patch("agents.legislation_finder.web_search.invoke")
     def test_full_pipeline_with_mocks(
         self,
         mock_search: MagicMock,

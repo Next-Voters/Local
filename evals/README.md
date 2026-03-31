@@ -153,11 +153,9 @@ The `conftest.py` provides fixtures for testing:
 
 ### Mock API Fixtures
 
-- `mock_brave_search`: Mock Brave Search API responses
 - `mock_wikidata`: Mock Wikidata API responses
 - `mock_llm_response`: Mock LLM responses
 - `mock_structured_llm_response`: Mock structured LLM output
-- `patch_brave_search`: Monkeypatch for Brave Search
 - `patch_wikidata`: Monkeypatch for Wikidata
 
 ### State Fixtures

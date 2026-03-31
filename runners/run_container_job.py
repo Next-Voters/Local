@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import logging
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -13,6 +14,13 @@ try:
     from dotenv import load_dotenv
 except ImportError:  # pragma: no cover - optional dependency
     load_dotenv = None
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module=r"^pydantic\.main$",
+    message=r"(?s)^Pydantic serializer warnings:.*PydanticSerializationUnexpectedValue\(.*field_name=['\"]parsed['\"]",
+)
 
 from utils.supabase_client import get_supported_cities_from_db
 from global_data.build_city_reports_dict import build_city_reports_dict

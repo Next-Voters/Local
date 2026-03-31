@@ -3,6 +3,8 @@
 from utils.schemas.pydantic import (
     ReflectionEntry,
     IndividualReliabilityAnalysis,
+    SourceReliabilityJudgment,
+    ReliabilityAnalysisResult,
     WriterOutput,
 )
 from utils.schemas.state import (
@@ -19,6 +21,8 @@ from utils.schemas.state import (
 __all__ = [
     "ReflectionEntry",
     "IndividualReliabilityAnalysis",
+    "SourceReliabilityJudgment",
+    "ReliabilityAnalysisResult",
     "WriterOutput",
     "BaseAgentState",
     "ReliableLegislationSources",

@@ -13,6 +13,7 @@ def parse_mcp_result(result: Any) -> dict[str, Any]:
     Returns:
         Parsed dict or error dict
     """
+    text_content = ""
     try:
         if hasattr(result, "content") and result.content:
             first_content = result.content[0]

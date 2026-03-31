@@ -1,6 +1,6 @@
 """Shared Pydantic models used to structure LLM responses."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -31,6 +31,30 @@ class IndividualReliabilityAnalysis(BaseModel):
     )
     reasoning: Optional[str] = Field(
         default=None, description="Reasoning for the score"
+    )
+
+
+class SourceReliabilityJudgment(BaseModel):
+    """Single source reliability judgment."""
+
+    url: str = Field(description="URL of the source")
+    organization: str = Field(description="Organization name")
+    tier: Literal[
+        "highly_reliable", "conditionally_reliable", "unreliable", "unknown"
+    ] = Field(description="Reliability classification tier")
+    rationale: str = Field(
+        description="Reasoning citing specific Wikidata signal, max 200 chars"
+    )
+    accepted: bool = Field(
+        description="True only for highly_reliable or conditionally_reliable"
+    )
+
+
+class ReliabilityAnalysisResult(BaseModel):
+    """Structured output from reliability analysis LLM call."""
+
+    judgments: list[SourceReliabilityJudgment] = Field(
+        description="One judgment per source"
     )
 
 

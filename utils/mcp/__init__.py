@@ -1,37 +1,47 @@
-"""MCP client utilities for connecting to external MCP servers."""
+"""MCP client utilities for connecting to external services.
 
-from utils.mcp.brave_client import (
-    get_brave_session,
-    load_goggles,
-    SMITHERY_BRAVE_SEARCH_URL,
+Each subdirectory is a self-contained MCP service with two files:
+  - client.py: The interface app code imports. Connects to the server via stdio subprocess.
+  - server.py: The FastMCP server that runs as a standalone subprocess. Not imported directly.
+"""
+
+from utils.mcp.tavily import (
+    get_api_key,
+    get_tavily_session,
+    search_legislation,
+    search_political_content,
+    extract_search_results,
+    extract_url_content,
 )
-from utils.mcp.twitter_client import (
-    get_twitter_session,
-    get_twitter_credentials,
-    search_tweets,
-    get_user_tweets,
-    get_user_by_username,
-    search_user_and_tweets,
-    validate_twitter_handle,
-    sanitize_search_context,
-    is_error_response,
-    extract_tweet_results,
-    SMITHERY_TWITTER_URL,
+from utils.mcp.wikidata import (
+    get_wikidata_session,
+    search_entity,
+    get_org_classification,
+    analyze_reliability,
+)
+from utils.mcp.political_figures import (
+    get_political_figures_session,
+    find_political_figures,
+    extract_commentary,
+    search_politician_tweets,
 )
 
 __all__ = [
-    "get_brave_session",
-    "load_goggles",
-    "SMITHERY_BRAVE_SEARCH_URL",
-    "get_twitter_session",
-    "get_twitter_credentials",
-    "search_tweets",
-    "get_user_tweets",
-    "get_user_by_username",
-    "search_user_and_tweets",
-    "validate_twitter_handle",
-    "sanitize_search_context",
-    "is_error_response",
-    "extract_tweet_results",
-    "SMITHERY_TWITTER_URL",
+    # Tavily
+    "get_api_key",
+    "get_tavily_session",
+    "search_legislation",
+    "search_political_content",
+    "extract_search_results",
+    "extract_url_content",
+    # Wikidata
+    "get_wikidata_session",
+    "search_entity",
+    "get_org_classification",
+    "analyze_reliability",
+    # Political Figures
+    "get_political_figures_session",
+    "find_political_figures",
+    "extract_commentary",
+    "search_politician_tweets",
 ]
