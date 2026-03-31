@@ -56,3 +56,14 @@ def get_structured_llm(
         **kwargs,
     )
     return base_llm.with_structured_output(output_schema, include_raw=False)
+
+
+def get_structured_mini_llm(output_schema: Type[T], **kwargs) -> Runnable[Any, T]:
+    return get_structured_llm(
+        output_schema=output_schema,
+        model=MINI_LLM_CONFIG["model"],
+        temperature=MINI_LLM_CONFIG["temperature"],
+        max_tokens=MINI_LLM_CONFIG["max_tokens"],
+        timeout=MINI_LLM_CONFIG["timeout"],
+        **kwargs,
+    )

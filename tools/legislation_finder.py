@@ -7,9 +7,9 @@ Uses Tavily cloud search with profile-based customization.
 """
 
 import json
-from functools import lru_cache
 from typing import Annotated, Any
 
+from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
@@ -18,13 +18,12 @@ from langgraph.types import Command
 from config.system_prompts import reliability_judgment_prompt
 from utils.tools import search_entity, get_org_classification
 from utils.mcp.tavily_client import search_legislation, extract_search_results
-from utils.json_utils import extract_json
-from utils.llm import get_mini_llm
+from utils.llm import get_structured_mini_llm
+from utils.schemas import ReliabilityAnalysisResult
 
+load_dotenv()
 
-@lru_cache(maxsize=1)
-def _get_mini_model():
-    return get_mini_llm()
+_reliability_model = get_structured_mini_llm(ReliabilityAnalysisResult)
 
 
 @tool
@@ -171,7 +170,7 @@ def reliability_analysis(
         input_city=city, sources_with_context=context_text
     )
 
-    judgment_response = _get_mini_model().invoke(
+    result = _reliability_model.invoke(
         [
             {"role": "system", "content": judgment_prompt},
             {
@@ -181,83 +180,21 @@ def reliability_analysis(
         ]
     )
 
-    try:
-        cleaned_content = extract_json(judgment_response.content)
-        judgments = json.loads(cleaned_content)
-    except (json.JSONDecodeError, TypeError) as e:
-        # Safe fallback: reject all sources if judgment parsing fails (can't verify reliability)
-        print(f"[DEBUG] JSON parse error: {e}")
-        print(f"[DEBUG] Raw response: {judgment_response.content[:500]}...")
-        summary = (
-            f"Reliability analysis could not parse LLM judgments. "
-            f"Falling back to rejecting all {len(raw_legislation_sources)} source(s)."
-        )
-        return Command(
-            update={
-                "raw_legislation_sources": [],
-                "reliable_legislation_sources": [],
-                "messages": [ToolMessage(content=summary, tool_call_id=tool_call_id)],
-            }
-        )
-
-    if not isinstance(judgments, list):
-        summary = (
-            "Reliability analysis expected a list of judgments but received "
-            f"{type(judgments).__name__}. Rejecting all sources."
-        )
-        return Command(
-            update={
-                "raw_legislation_sources": [],
-                "reliable_legislation_sources": [],
-                "messages": [ToolMessage(content=summary, tool_call_id=tool_call_id)],
-            }
-        )
-
-    normalized_judgments = []
-    invalid_items = 0
-    for item in judgments:
-        if not isinstance(item, dict):
-            invalid_items += 1
-            continue
-
-        url = item.get("url")
-        has_valid_url = isinstance(url, str) and bool(url.strip())
-        normalized_judgments.append(
-            {
-                "accepted": bool(item.get("accepted", False)),
-                "url": url.strip() if has_valid_url else "Unknown URL",
-                "has_valid_url": has_valid_url,
-                "reason": item.get("reason", "No reason given"),
-            }
-        )
-
-    accepted = [
-        j
-        for j in normalized_judgments
-        if j.get("accepted", False) and j["has_valid_url"]
-    ]
-    rejected = [
-        j
-        for j in normalized_judgments
-        if not (j.get("accepted", False) and j["has_valid_url"])
-    ]
-    reliable_sources = [j["url"] for j in accepted]
+    accepted = [judgement for judgement in result.judgments if judgement.accepted and judgement.url]
+    rejected = [judgement for judgement in result.judgments if not judgement.accepted or not judgement.url]
+    reliable_sources = [judgement.url for judgement in accepted]
 
     summary_lines = [
         f"Reliability analysis complete. {len(accepted)} accepted, {len(rejected)} rejected.",
         "",
         "Accepted sources:" if accepted else "No sources accepted.",
     ]
-    for j in accepted:
-        summary_lines.append(f"  ✓ {j['url']} — {j.get('reason', 'No reason given')}")
+    for judgement in accepted:
+        summary_lines.append(f"  ✓ {judgement.url} — {judgement.rationale}")
     if rejected:
         summary_lines.append("Rejected sources:")
-        for j in rejected:
-            summary_lines.append(
-                f"  ✗ {j['url']} — {j.get('reason', 'No reason given')}"
-            )
-    if invalid_items:
-        summary_lines.append(f"Skipped {invalid_items} malformed judgment item(s).")
+        for judgement in rejected:
+            summary_lines.append(f"  ✗ {judgement.url} — {judgement.rationale}")
 
     return Command(
         update={
