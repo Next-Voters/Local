@@ -17,7 +17,7 @@ from tavily import TavilyClient
 
 mcp = FastMCP("Tavily")
 
-_PROFILES_DIR = Path(__file__).parent.parent.parent / "config" / "search_profiles"
+_PROFILES_DIR = Path(__file__).parent.parent.parent.parent / "config" / "search_profiles"
 
 
 def _get_client() -> TavilyClient:
