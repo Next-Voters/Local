@@ -1,14 +1,13 @@
 """Pytest configuration and fixtures for NV Local evaluation suite.
 
-Provides mocks for external APIs (Brave Search, Wikidata, LLM calls)
+Provides mocks for external APIs (Wikidata, LLM calls, MCP servers)
 to enable isolated unit testing of components.
 """
 
 from __future__ import annotations
 
-import json
-from typing import Any, Generator, Optional
-from unittest.mock import MagicMock, AsyncMock, patch
+from typing import Any, Optional
+from unittest.mock import MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
@@ -253,29 +252,6 @@ Councilor Matlow expressed conditional support for climate bill, noting need for
 
 
 @pytest.fixture
-def mock_brave_search() -> MagicMock:
-    """Mock Brave Search API responses."""
-    mock = MagicMock()
-    mock.return_value = {
-        "web": {
-            "results": [
-                {
-                    "title": "Toronto City Council Meeting - January 2024",
-                    "url": "https://www.toronto.ca/legdocs/mmis/2024/cc/billd -it/2024-cc-doc-1.pdf",
-                    "description": "Official city council legislation documents",
-                },
-                {
-                    "title": "Toronto Municipal Code - Active Legislation",
-                    "url": "https://www.toronto.ca/legdocs/mmis/2024/",
-                    "description": "Current municipal legislation and bylaws",
-                },
-            ]
-        }
-    }
-    return mock
-
-
-@pytest.fixture
 def mock_wikidata() -> MagicMock:
     """Mock Wikidata API responses."""
     mock = MagicMock()
@@ -388,22 +364,6 @@ def mock_retrieval_context() -> str:
     """
 
 
-class MockBraveSearchTool:
-    """Mock Brave Search tool for testing."""
-
-    def __init__(self, results: Optional[list[dict]] = None):
-        self.results = results or [
-            {
-                "title": "Test Legislation",
-                "url": "https://example.gov/legislation",
-                "description": "Test description",
-            }
-        ]
-
-    def invoke(self, query: str) -> dict:
-        return {"web": {"results": self.results}}
-
-
 class MockWikidataTool:
     """Mock Wikidata tool for testing."""
 
@@ -414,26 +374,6 @@ class MockWikidataTool:
 
     def invoke(self, query: str) -> dict:
         return {"results": self.entities}
-
-
-@pytest.fixture
-def patch_brave_search(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Patch Brave Search API for all tests."""
-
-    def mock_search(query: str, **kwargs) -> dict:
-        return {
-            "web": {
-                "results": [
-                    {
-                        "title": f"Legislation related to {query}",
-                        "url": f"https://example.gov/search?q={query}",
-                        "description": "Mock search result",
-                    }
-                ]
-            }
-        }
-
-    monkeypatch.setattr("agents.legislation_finder.web_search.invoke", mock_search)
 
 
 @pytest.fixture
