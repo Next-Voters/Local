@@ -1,7 +1,10 @@
-"""Tavily MCP client — thin session layer.
+"""Tavily MCP client — the interface app code imports.
 
-Search uses the MCP server (tavily_server.py) connected via stdio subprocess.
-Profile logic (query building, domain filters) now lives in the server.
+Launches server.py as a stdio subprocess and exposes async functions for
+legislation search, political content search, and URL content extraction.
+Do not run this file directly; import its functions from your application.
+
+Profile logic (query building, domain filters) lives in server.py.
 Content extraction uses the tavily-python SDK directly.
 """
 
@@ -19,7 +22,7 @@ from tavily import AsyncTavilyClient
 
 from utils.mcp._shared import parse_mcp_result
 
-_SERVER_PATH = str(Path(__file__).parent / "tavily_server.py")
+_SERVER_PATH = str(Path(__file__).parent / "server.py")
 
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import httpx
 from langchain_core.runnables import RunnableLambda
 
 from utils.async_runner import run_async
-from utils.mcp.tavily_client import extract_url_content
+from utils.mcp.tavily import extract_url_content
 from utils.schemas import ChainData
 
 logger = logging.getLogger(__name__)

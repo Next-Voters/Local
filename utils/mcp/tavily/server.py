@@ -1,9 +1,10 @@
-"""Tavily MCP server wrapping the tavily-python SDK.
+"""Tavily MCP server — runs as a standalone stdio subprocess.
 
-Run as a subprocess via stdio transport. Exposes generic and profile-aware
-search tools plus content extraction.
+This file is NOT imported by app code. It is launched by client.py as a
+subprocess. Provides FastMCP tools wrapping the tavily-python SDK for
+generic and profile-aware search plus content extraction.
 
-Usage: python -m utils.mcp.tavily_server (or run directly)
+Usage: python -m utils.mcp.tavily.server
 """
 
 import os

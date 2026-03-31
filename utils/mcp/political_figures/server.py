@@ -1,10 +1,10 @@
-"""Political Figures MCP server for civic research.
+"""Political Figures MCP server — runs as a standalone stdio subprocess.
 
-Provides tools for finding political figures, extracting commentary from
-web pages, and searching politician tweets via the Twitter/X API (tweepy).
+This file is NOT imported by app code. It is launched by client.py as a
+subprocess. Provides FastMCP tools for finding political figures, extracting
+commentary from web pages, and searching politician tweets via tweepy.
 
-Run as a subprocess via stdio transport.
-Usage: python -m utils.mcp.political_figures_server
+Usage: python -m utils.mcp.political_figures.server
 """
 
 import logging

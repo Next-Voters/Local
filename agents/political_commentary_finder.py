@@ -19,12 +19,12 @@ from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from agents.base_agent_template import BaseReActAgent
-from utils.mcp.political_figures_client import (
+from utils.mcp.political_figures import (
     find_political_figures as mcp_find_figures,
     extract_commentary as mcp_extract_commentary,
     search_politician_tweets as mcp_search_tweets,
 )
-from utils.mcp.tavily_client import search_political_content, extract_search_results
+from utils.mcp.tavily import search_political_content, extract_search_results
 from config.system_prompts import political_commentary_sys_prompt
 from utils.schemas import PoliticalCommentaryState
 

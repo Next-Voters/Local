@@ -1,6 +1,8 @@
-"""Political Figures MCP client for civic research.
+"""Political Figures MCP client — the interface app code imports.
 
-Connects to the local political_figures_server.py via stdio subprocess.
+Launches server.py as a stdio subprocess and exposes async functions for
+finding political figures, extracting commentary, and searching tweets.
+Do not run this file directly; import its functions from your application.
 
 Usage:
     result = await find_political_figures(city="Toronto")
@@ -19,7 +21,7 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 
 from utils.mcp._shared import parse_mcp_result
 
-_SERVER_PATH = str(Path(__file__).parent / "political_figures_server.py")
+_SERVER_PATH = str(Path(__file__).parent / "server.py")
 
 
 @asynccontextmanager

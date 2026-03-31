@@ -19,8 +19,8 @@ from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from agents.base_agent_template import BaseReActAgent
-from utils.mcp.tavily_client import search_legislation, extract_search_results
-from utils.mcp.wikidata_client import analyze_reliability as mcp_analyze_reliability
+from utils.mcp.tavily import search_legislation, extract_search_results
+from utils.mcp.wikidata import analyze_reliability as mcp_analyze_reliability
 from utils.schemas import LegislationFinderState
 from config.system_prompts import legislation_finder_sys_prompt
 

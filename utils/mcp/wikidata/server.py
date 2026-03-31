@@ -1,9 +1,10 @@
-"""Wikidata MCP server for entity lookup and reliability analysis.
+"""Wikidata MCP server — runs as a standalone stdio subprocess.
 
-Wraps Wikidata API/SPARQL lookups and an LLM-based reliability judgment
-pipeline. Run as a subprocess via stdio transport.
+This file is NOT imported by app code. It is launched by client.py as a
+subprocess. Provides FastMCP tools wrapping Wikidata API/SPARQL lookups
+and an LLM-based reliability judgment pipeline.
 
-Usage: python -m utils.mcp.wikidata_server
+Usage: python -m utils.mcp.wikidata.server
 """
 
 import json

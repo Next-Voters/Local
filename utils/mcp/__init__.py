@@ -1,6 +1,11 @@
-"""MCP client utilities for connecting to external services."""
+"""MCP client utilities for connecting to external services.
 
-from utils.mcp.tavily_client import (
+Each subdirectory is a self-contained MCP service with two files:
+  - client.py: The interface app code imports. Connects to the server via stdio subprocess.
+  - server.py: The FastMCP server that runs as a standalone subprocess. Not imported directly.
+"""
+
+from utils.mcp.tavily import (
     get_api_key,
     get_tavily_session,
     search_legislation,
@@ -8,13 +13,13 @@ from utils.mcp.tavily_client import (
     extract_search_results,
     extract_url_content,
 )
-from utils.mcp.wikidata_client import (
+from utils.mcp.wikidata import (
     get_wikidata_session,
     search_entity,
     get_org_classification,
     analyze_reliability,
 )
-from utils.mcp.political_figures_client import (
+from utils.mcp.political_figures import (
     get_political_figures_session,
     find_political_figures,
     extract_commentary,
