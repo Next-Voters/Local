@@ -1,13 +1,13 @@
 """
-Email dispatcher for sending city-specific reports to subscribers.
+Email dispatcher for sending language-aware, topic-filtered reports to subscribers.
 
 This module handles the batch dispatch of markdown reports to subscribers
-based on their city preferences. Unlike the email_sender.py node (which is
-part of the pipeline chain), this dispatcher is called after all pipelines
-complete and works with a global reports dictionary.
+based on their city, topic, and language preferences. Unlike the email_sender.py
+node (which is part of the pipeline chain), this dispatcher is called after all
+pipelines complete and works with the cached reports dictionary.
 
-The dispatcher ensures each subscriber receives only the report for their
-subscribed city.
+Each subscriber receives a personalized email in their preferred language,
+containing only the reports matching their selected topics.
 """
 
 import json
@@ -17,122 +17,24 @@ import queue
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from email.mime.text import MIMEText
-from threading import Lock
 from typing import Any
 
-from utils.supabase_client import get_all_subscribers_with_cities
+from utils.supabase_client import get_all_subscribers_with_cities_and_topics
+from utils.report_translator import LANG_MAP
 from utils.email import (
     SMTPConnectionPool,
     convert_markdown_to_html,
     render_template,
-    create_mime_message,
+    send_single_email,
+    is_email_configured,
 )
 
 logger = logging.getLogger(__name__)
 
 
-EMAIL_REQUIRED_ENV = (
-    "SMTP_EMAIL",
-    "SMTP_APP_PASSWORD",
-    "SUPABASE_URL",
-    "SUPABASE_KEY",
-)
-
-
-def _is_email_configured() -> bool:
-    """Check if all required email environment variables are set."""
-    return all(os.environ.get(env_var) for env_var in EMAIL_REQUIRED_ENV)
-
-
-def send_single_email(
-    pool: SMTPConnectionPool,
-    email: str,
-    subject: str,
-    html_body: str,
-    failures: queue.Queue,
-) -> bool:
-    """Send a single email and track failures.
-    
-    Uses a thread-safe queue instead of a shared list to avoid race conditions
-    when multiple threads add failures simultaneously.
-    
-    Args:
-        pool: SMTP connection pool
-        email: Recipient email address
-        subject: Email subject line
-        html_body: HTML email body
-        failures: Thread-safe queue for tracking delivery failures
-        
-    Returns:
-        True if email sent successfully, False otherwise
-    """
-    conn = None
-    try:
-        conn = pool.get_connection(timeout=30)
-
-        msg = create_mime_message(
-            os.environ["SMTP_EMAIL"],
-            email,
-            subject,
-            html_body,
-        )
-
-        conn.sendmail(os.environ["SMTP_EMAIL"], email, msg.as_string())
-
-        time.sleep(0.5)
-
-        return True
-    except Exception as e:
-        # Queue is thread-safe, no lock needed
-        failures.put(
-            {
-                "email": email,
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-        return False
-    finally:
-        if conn:
-            pool.return_connection(conn)
-
-
-def send_batch(
-    pool: SMTPConnectionPool,
-    emails: list[str],
-    subject: str,
-    html_body: str,
-    failures: queue.Queue,
-):
-    """Send emails in a batch using thread pool.
-    
-    Args:
-        pool: SMTP connection pool
-        emails: List of recipient email addresses
-        subject: Email subject line
-        html_body: HTML email body
-        failures: Thread-safe queue for tracking delivery failures
-    """
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = []
-        for email in emails:
-            future = executor.submit(
-                send_single_email,
-                pool,
-                email,
-                subject,
-                html_body,
-                failures,
-            )
-            futures.append(future)
-        for future in futures:
-            future.result()
-
-
 def save_failures(failures: list[dict]):
     """Save email delivery failures to a JSON file.
-    
+
     Args:
         failures: List of failure records
     """
@@ -144,36 +46,86 @@ def save_failures(failures: list[dict]):
     logger.warning(f"Saved {len(failures)} email delivery failures to {failures_path}")
 
 
-def dispatch_emails_to_subscribers(
-    reports_by_city: dict[str, str],
-) -> dict[str, Any]:
-    """
-    Query all subscribers and send each their city-specific report.
-
-    This function:
-    1. Validates that reports_by_city is not empty
-    2. Queries the subscriptions table for all subscribers with their city preferences
-    3. For each subscriber, looks up their city's report from the reports_by_city dictionary
-    4. Sends the city-specific markdown report to that subscriber
-    5. Tracks delivery statistics and failures separately
+def _build_subscriber_markdown(
+    subscriber_topics: list[str],
+    city_reports: dict[str, str],
+) -> str:
+    """Build combined markdown from matching topic reports for a subscriber.
 
     Args:
-        reports_by_city: Dictionary mapping city names to markdown reports
-                        Generated from build_city_reports_dict() in run_container_job.py
-                        Example: {"Toronto": "# Report...", "NYC": "# Report..."}
+        subscriber_topics: List of topic names the subscriber is interested in
+        city_reports: Dict mapping topic name to markdown report for the subscriber's city
 
     Returns:
-        Dictionary with delivery statistics:
-        {
-            "total_sent": int,
-            "by_city": {city: count, ...},
-            "missing_reports": [{"email": "...", "city": "...", "reason": "...", "timestamp": "..."}],
-            "delivery_failures": [{"email": "...", "error": "...", "timestamp": "..."}]
-        }
+        Combined markdown string with topic sections, or empty string if no matches
+    """
+    sections = []
+    for topic in subscriber_topics:
+        topic_report = city_reports.get(topic)
+        if topic_report:
+            sections.append(topic_report)
+
+    return "\n\n---\n\n".join(sections)
+
+
+def _build_translated_subscriber_markdown(
+    subscriber_topics: list[str],
+    city: str,
+    lang_code: str,
+    translations: dict[str, dict[str, dict[str, str]]],
+) -> str:
+    """Build combined translated markdown for a subscriber's preferred language.
+
+    Args:
+        subscriber_topics: List of topic names the subscriber is interested in.
+        city: The subscriber's city.
+        lang_code: Target language code (e.g. "ES", "FR").
+        translations: Nested dict {city: {topic: {lang: translated_markdown}}}.
+
+    Returns:
+        Combined translated markdown, or empty string if no translations available.
+    """
+    city_translations = translations.get(city, {})
+    if not city_translations:
+        return ""
+
+    sections = []
+    for topic in subscriber_topics:
+        translated = city_translations.get(topic, {}).get(lang_code, "")
+        if translated:
+            sections.append(translated)
+
+    return "\n\n---\n\n".join(sections)
+
+
+def dispatch_emails_to_subscribers(
+    reports: dict[str, dict[str, str]],
+    translations: dict[str, dict[str, dict[str, str]]] | None = None,
+) -> dict[str, Any]:
+    """
+    Query all subscribers and send each a personalized report in their preferred language.
+
+    This function:
+    1. Validates that reports is not empty
+    2. Queries subscribers with their city, topic, and language preferences
+    3. For each subscriber, selects the report in their preferred language:
+       - English (or NULL): sends the original English report
+       - Spanish/French: sends the translated version if available, falls back to English
+    4. Combines matching topic reports into a single personalized email
+    5. Tracks delivery statistics and failures
+
+    Args:
+        reports: Nested dictionary mapping city -> topic -> markdown report.
+                 Generated from report_cache.get_all().
+        translations: Optional nested dict mapping city -> topic -> lang -> translated markdown.
+                      Generated by report_translator.translate_all_reports().
+
+    Returns:
+        Dictionary with delivery statistics.
     """
 
     # Check if email is configured
-    if not _is_email_configured():
+    if not is_email_configured():
         logger.info("Email configuration incomplete; skipping email dispatch")
         return {
             "total_sent": 0,
@@ -184,9 +136,9 @@ def dispatch_emails_to_subscribers(
             ],
         }
 
-    # Validate input: reports_by_city should not be empty
-    if not reports_by_city:
-        logger.warning("No reports available for dispatch (reports_by_city is empty)")
+    # Validate input
+    if not reports:
+        logger.warning("No reports available for dispatch (reports is empty)")
         return {
             "total_sent": 0,
             "by_city": {},
@@ -194,9 +146,9 @@ def dispatch_emails_to_subscribers(
             "delivery_failures": ["No reports available for dispatch"],
         }
 
-    # Query all subscribers with their city preferences
+    # Query all subscribers with their city, topic, and language preferences
     try:
-        subscribers = get_all_subscribers_with_cities()
+        subscribers = get_all_subscribers_with_cities_and_topics()
     except Exception as e:
         logger.error(f"Failed to query subscribers: {e}")
         return {
@@ -215,44 +167,103 @@ def dispatch_emails_to_subscribers(
             "delivery_failures": [],
         }
 
-    logger.info(f"Dispatching reports to {len(subscribers)} subscriber(s)")
+    logger.info(f"Dispatching topic-filtered reports to {len(subscribers)} subscriber(s)")
 
-    # Group subscribers by city and track missing reports
-    subscribers_by_city: dict[str, list[str]] = {}
-    missing_reports = []
+    # Build per-subscriber email content and track missing reports
+    send_queue: list[dict[str, str]] = []
+    missing_reports: list[dict] = []
 
     for subscriber in subscribers:
         contact = subscriber.get("contact")
         city = subscriber.get("city")
+        topics = subscriber.get("topics", [])
+        preferred_language = subscriber.get("preferred_language")
 
         if not contact or not city:
             logger.warning(f"Subscriber missing contact or city: {subscriber}")
             continue
 
-        # Validate city has a non-empty name
-        if not city or not city.strip():
+        if not city.strip():
             logger.warning(f"Subscriber has empty city name: {subscriber}")
             continue
 
-        # Validate city has a report
-        if city not in reports_by_city:
-            logger.warning(f"No report available for city: {city}")
-            missing_reports.append(
-                {
-                    "email": contact,
-                    "city": city,
-                    "reason": "No report available for city",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
-            )
+        city_reports = reports.get(city, {})
+
+        if not city_reports:
+            logger.warning(f"No reports available for city: {city}")
+            missing_reports.append({
+                "email": contact,
+                "city": city,
+                "topics": topics,
+                "reason": "No reports available for city",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
             continue
 
-        # Add subscriber to city group
-        if city not in subscribers_by_city:
-            subscribers_by_city[city] = []
-        subscribers_by_city[city].append(contact)
+        if not topics:
+            logger.warning(f"Subscriber {contact} has no topic preferences")
+            missing_reports.append({
+                "email": contact,
+                "city": city,
+                "topics": [],
+                "reason": "No topic preferences set",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            continue
 
-    # Set up email infrastructure with error handling
+        # Determine which content to send based on preferred_language
+        lang_code = LANG_MAP.get(preferred_language or "") if preferred_language else None
+
+        if lang_code and translations:
+            # Try to build translated content for the preferred language
+            combined_markdown = _build_translated_subscriber_markdown(
+                topics, city, lang_code, translations
+            )
+            if not combined_markdown:
+                # Fall back to English if translation is not available
+                logger.info(
+                    f"No {preferred_language} translation for {contact} ({city}); "
+                    f"falling back to English"
+                )
+                combined_markdown = _build_subscriber_markdown(topics, city_reports)
+        else:
+            # English or no preference — use original reports
+            combined_markdown = _build_subscriber_markdown(topics, city_reports)
+
+        if not combined_markdown:
+            logger.warning(
+                f"No matching topic reports for subscriber {contact} "
+                f"(city={city}, topics={topics})"
+            )
+            missing_reports.append({
+                "email": contact,
+                "city": city,
+                "topics": topics,
+                "reason": "No reports match subscriber topics",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            continue
+
+        # Convert to HTML and queue for sending
+        html_content = convert_markdown_to_html(combined_markdown)
+        html_body = render_template(html_content)
+
+        send_queue.append({
+            "contact": contact,
+            "city": city,
+            "html_body": html_body,
+        })
+
+    if not send_queue:
+        logger.info("No emails to send after topic filtering")
+        return {
+            "total_sent": 0,
+            "by_city": {},
+            "missing_reports": missing_reports,
+            "delivery_failures": [],
+        }
+
+    # Set up email infrastructure
     try:
         pool = SMTPConnectionPool(pool_size=10)
     except RuntimeError as e:
@@ -264,46 +275,45 @@ def dispatch_emails_to_subscribers(
             "delivery_failures": [f"SMTP pool initialization failed: {str(e)}"],
         }
 
-    # Use thread-safe queue for failure tracking instead of shared list
     failures_queue: queue.Queue = queue.Queue()
 
-    delivery_stats = {
+    delivery_stats: dict[str, Any] = {
         "total_sent": 0,
         "by_city": {},
         "missing_reports": missing_reports,
         "delivery_failures": [],
     }
 
-    try:
-        # Send emails grouped by city
-        for city, emails in subscribers_by_city.items():
-            markdown_report = reports_by_city[city]
-            html_content = convert_markdown_to_html(markdown_report)
-            html_body = render_template(html_content)
+    with pool:
+        # Send emails in waves to avoid rate limiting
+        waves = [send_queue[i : i + 100] for i in range(0, len(send_queue), 100)]
 
-            logger.info(f"Sending {len(emails)} email(s) for city: {city}")
+        for wave in waves:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = []
+                for item in wave:
+                    future = executor.submit(
+                        send_single_email,
+                        pool,
+                        item["contact"],
+                        f"NV Local Report - {item['city']}",
+                        item["html_body"],
+                        failures_queue,
+                    )
+                    futures.append((future, item))
 
-            # Send emails in waves to avoid rate limiting
-            waves = [emails[i : i + 100] for i in range(0, len(emails), 100)]
+                for future, item in futures:
+                    success = future.result()
+                    if success:
+                        city = item["city"]
+                        delivery_stats["by_city"][city] = (
+                            delivery_stats["by_city"].get(city, 0) + 1
+                        )
+                        delivery_stats["total_sent"] += 1
 
-            for wave in waves:
-                send_batch(
-                    pool,
-                    wave,
-                    f"NV Local Report - {city}",
-                    html_body,
-                    failures_queue,
-                )
-                time.sleep(1)
+            time.sleep(1)
 
-            # Update stats
-            delivery_stats["by_city"][city] = len(emails)
-            delivery_stats["total_sent"] += len(emails)
-
-    finally:
-        pool.close_all()
-
-    # Extract failures from queue into list
+    # Extract failures from queue
     delivery_failures = []
     while not failures_queue.empty():
         try:
@@ -311,11 +321,10 @@ def dispatch_emails_to_subscribers(
         except queue.Empty:
             break
 
-    # Save all failures (both missing reports and delivery failures)
+    # Save all failures
     all_failures = delivery_failures + missing_reports
     save_failures(all_failures)
 
-    # Update stats with delivery failures (separate from missing reports)
     delivery_stats["delivery_failures"] = delivery_failures
 
     logger.info(

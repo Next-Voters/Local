@@ -5,8 +5,8 @@
 # ---------------------------------------------------------------------------
 
 # Fraction of tokens to retain after compression (0.0 = nothing, 1.0 = keep all).
-# At 0.5 a 534 K-token NYC payload becomes ~267 K, safely under the 272 K limit.
-COMPRESSION_RATE: float = 0.5
+# At 0.4 with a 10-URL cap, even large-city payloads stay safely under the 272 K limit.
+COMPRESSION_RATE: float = 0.4
 
 # Skip compression for content shorter than this — overhead not worth it.
 MIN_CHARS_TO_COMPRESS: int = 1_000

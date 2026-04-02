@@ -19,10 +19,10 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 from rich import box
 
-from utils.supabase_client import get_supported_cities_from_db
+from utils.supabase_client import get_supported_cities_from_db, get_supported_topics
 from runners.run_container_job import (
-    render_city_reports_markdown,
-    run_pipelines_for_cities,
+    render_pipeline_reports_markdown,
+    run_pipelines_for_cities_and_topics,
 )
 from utils.cli import show_welcome
 
@@ -36,7 +36,7 @@ console = Console()
 
 
 def main() -> int:
-    """Run the CLI pipeline for all supported cities.
+    """Run the CLI pipeline for all supported cities and topics.
 
     Returns:
         0 on success, 1 on error
@@ -63,9 +63,27 @@ def main() -> int:
             )
             return 1
 
-        logger.info(f"Running pipeline for {len(cities)} cities")
-        results_by_city = run_pipelines_for_cities(cities)
-        report = render_city_reports_markdown(results_by_city, cities)
+        # Get supported topics from Supabase
+        try:
+            topics = get_supported_topics()
+        except Exception as e:
+            logger.error(f"Failed to get supported topics: {e}")
+            console.print(
+                f"[bold red]Error:[/bold red] Could not load supported topics from Supabase: {e}",
+            )
+            return 1
+
+        if not topics:
+            logger.warning("No supported topics found")
+            console.print(
+                "[bold yellow]Warning:[/bold yellow] No supported topics found"
+            )
+            return 1
+
+        logger.info(f"Running pipeline for {len(cities)} cities x {len(topics)} topics")
+        targets = [(city, topic) for city in cities for topic in topics]
+        results = run_pipelines_for_cities_and_topics(cities, topics)
+        report = render_pipeline_reports_markdown(results, targets)
 
         console.print()
         console.print(

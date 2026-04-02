@@ -10,10 +10,10 @@ Note: Email dispatch is now primarily handled by the batch dispatcher
 This node is maintained for backward compatibility.
 """
 
-import os
 import logging
 import queue
-from threading import Lock
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 from langchain_core.runnables import RunnableLambda
 
@@ -21,7 +21,8 @@ from utils.email import (
     SMTPConnectionPool,
     convert_markdown_to_html,
     render_template,
-    create_mime_message,
+    send_single_email,
+    is_email_configured,
 )
 from utils.schemas.state import ChainData
 
@@ -30,13 +31,13 @@ logger = logging.getLogger(__name__)
 
 def get_subscribers() -> list[str]:
     """Query subscribers from Supabase.
-    
+
     Returns:
         List of subscriber email addresses
     """
     try:
         from utils.supabase_client import get_subscribers_for_city
-        
+
         # For backward compatibility with pipeline-based sending,
         # we could implement city-specific logic here if needed
         # For now, this is not called in the main pipeline
@@ -44,65 +45,6 @@ def get_subscribers() -> list[str]:
     except Exception as e:
         logger.error(f"Failed to get subscribers: {e}")
         return []
-
-
-EMAIL_REQUIRED_ENV = (
-    "SMTP_EMAIL",
-    "SMTP_APP_PASSWORD",
-    "SUPABASE_URL",
-    "SUPABASE_KEY",
-)
-
-
-def _is_email_configured() -> bool:
-    """Check if all required email environment variables are set."""
-    return all(os.environ.get(env_var) for env_var in EMAIL_REQUIRED_ENV)
-
-
-def send_single_email(
-    pool: SMTPConnectionPool,
-    email: str,
-    subject: str,
-    html_body: str,
-    failures_queue: queue.Queue,
-) -> bool:
-    """Send a single email and track failures.
-    
-    Args:
-        pool: SMTP connection pool
-        email: Recipient email address
-        subject: Email subject line
-        html_body: HTML email body
-        failures_queue: Thread-safe queue for tracking failures
-        
-    Returns:
-        True if email sent successfully, False otherwise
-    """
-    conn = None
-    try:
-        conn = pool.get_connection(timeout=30)
-
-        msg = create_mime_message(
-            os.environ["SMTP_EMAIL"],
-            email,
-            subject,
-            html_body,
-        )
-
-        conn.sendmail(os.environ["SMTP_EMAIL"], email, msg.as_string())
-
-        return True
-    except Exception as e:
-        failures_queue.put(
-            {
-                "email": email,
-                "error": str(e),
-            }
-        )
-        return False
-    finally:
-        if conn:
-            pool.return_connection(conn)
 
 
 def send_batch(
@@ -113,7 +55,7 @@ def send_batch(
     failures_queue: queue.Queue,
 ):
     """Send emails in a batch using thread pool.
-    
+
     Args:
         pool: SMTP connection pool
         emails: List of recipient email addresses
@@ -121,9 +63,6 @@ def send_batch(
         html_body: HTML email body
         failures_queue: Thread-safe queue for tracking failures
     """
-    from concurrent.futures import ThreadPoolExecutor
-    import time
-    
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = []
         for email in emails:
@@ -142,17 +81,17 @@ def send_batch(
 
 def send_email_to_subscribers(inputs: ChainData) -> ChainData:
     """Send email to all subscribers (legacy pipeline node).
-    
+
     This node sends reports to ALL subscribers regardless of city preference.
     For city-specific dispatching, use dispatch_emails_to_subscribers() instead.
-    
+
     Args:
         inputs: Pipeline state containing markdown_report
-        
+
     Returns:
         Unchanged inputs (side effect: emails sent)
     """
-    if not _is_email_configured():
+    if not is_email_configured():
         logger.info("Email not configured; skipping email send")
         return inputs
 
@@ -181,9 +120,7 @@ def send_email_to_subscribers(inputs: ChainData) -> ChainData:
 
     failures_queue: queue.Queue = queue.Queue()
 
-    try:
-        import time
-        
+    with pool:
         waves = [emails[i : i + 100] for i in range(0, len(emails), 100)]
 
         for wave in waves:
@@ -191,8 +128,6 @@ def send_email_to_subscribers(inputs: ChainData) -> ChainData:
                 pool, wave, "NV Local Report", html_body, failures_queue
             )
             time.sleep(1)
-    finally:
-        pool.close_all()
 
     # Log any failures
     failure_count = 0
@@ -203,7 +138,7 @@ def send_email_to_subscribers(inputs: ChainData) -> ChainData:
             failure_count += 1
         except queue.Empty:
             break
-    
+
     if failure_count > 0:
         logger.warning(f"{failure_count} email delivery failure(s) encountered")
 

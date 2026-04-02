@@ -37,11 +37,13 @@ class ChainData(TypedDict):
     """Data sent through the chain of AI components."""
 
     city: NotRequired[str]
+    topic: NotRequired[str]
     legislation_sources: NotRequired[list[str | ReliableLegislationSources]]
     legislation_content: NotRequired[list[str]]
     notes: NotRequired[str]
     legislation_summary: NotRequired[WriterOutput]
     politician_public_statements: NotRequired[list[dict[str, object]]]
+    social_media_posts: NotRequired[list[dict[str, object]]]
     markdown_report: NotRequired[str]
 
 
@@ -78,6 +80,7 @@ class PoliticalCommentaryState(BaseAgentState):
     """Agent-specific state for the political commentary agent."""
 
     city: NotRequired[str]
+    topic: NotRequired[str]
     country: NotRequired[str]
     political_figures: NotRequired[Annotated[list[PoliticalFigure], operator.add]]
     political_commentary: NotRequired[

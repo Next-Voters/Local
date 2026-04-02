@@ -10,6 +10,7 @@ import smtplib
 import ssl
 import queue
 import logging
+from datetime import datetime, timezone
 from functools import lru_cache
 from email.mime.text import MIMEText
 
@@ -21,13 +22,26 @@ logger = logging.getLogger(__name__)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 
+EMAIL_REQUIRED_ENV = (
+    "SMTP_EMAIL",
+    "SMTP_APP_PASSWORD",
+    "SUPABASE_URL",
+    "SUPABASE_KEY",
+)
+
+
+def is_email_configured() -> bool:
+    """Check if all required email environment variables are set."""
+    return all(os.environ.get(env_var) for env_var in EMAIL_REQUIRED_ENV)
+
 
 class SMTPConnectionPool:
     """Thread-safe connection pool for SMTP operations.
-    
+
     Manages a pool of SMTP connections for concurrent email sending.
     Connections are initialized on pool creation and reused across
-    concurrent operations.
+    concurrent operations. Supports context manager protocol for
+    automatic cleanup.
     """
 
     def __init__(
@@ -37,7 +51,7 @@ class SMTPConnectionPool:
         smtp_port: int | None = None,
     ):
         """Initialize SMTP connection pool.
-        
+
         Args:
             pool_size: Number of connections to maintain in the pool
             smtp_host: SMTP server hostname (defaults to environment or smtp.gmail.com)
@@ -53,10 +67,10 @@ class SMTPConnectionPool:
 
     def _create_connection(self) -> smtplib.SMTP:
         """Create a single SMTP connection.
-        
+
         Returns:
             Initialized SMTP connection
-            
+
         Raises:
             smtplib.SMTPException: If connection/authentication fails
         """
@@ -77,12 +91,12 @@ class SMTPConnectionPool:
 
     def _init_pool(self):
         """Initialize the connection pool with partial failure handling.
-        
+
         Attempts to create all pool connections. If some fail, continues with
         fewer connections to degrade gracefully. Logs all failures for debugging.
         """
         logger.info(f"Initializing SMTP connection pool (size={self.pool_size})")
-        
+
         for i in range(self.pool_size):
             try:
                 conn = self._create_connection()
@@ -95,7 +109,7 @@ class SMTPConnectionPool:
                 )
                 # Continue with partial pool instead of crashing
                 continue
-        
+
         if self._created_connections == 0:
             logger.error(
                 f"Failed to create any SMTP connections! Pool initialization failed completely."
@@ -103,73 +117,109 @@ class SMTPConnectionPool:
             raise RuntimeError(
                 "SMTP connection pool initialization failed: could not create any connections"
             )
-        
+
         if self._created_connections < self.pool_size:
             logger.warning(
                 f"SMTP pool partially initialized: {self._created_connections}/{self.pool_size} connections"
             )
 
     def get_connection(self, timeout: int = 30) -> smtplib.SMTP:
-        """Get a connection from the pool.
-        
+        """Get a healthy connection from the pool, replacing stale ones.
+
+        Validates the connection with an SMTP NOOP command after retrieval.
+        If the connection has gone stale, it is discarded and a fresh one
+        is created in its place.
+
         Args:
             timeout: Seconds to wait for a connection to become available
-            
+
         Returns:
-            SMTP connection
-            
+            Healthy SMTP connection
+
         Raises:
             queue.Empty: If timeout expires before connection available
+            smtplib.SMTPException: If reconnection fails
         """
-        return self._pool.get(timeout=timeout)
+        conn = self._pool.get(timeout=timeout)
+        try:
+            conn.noop()
+            return conn
+        except (smtplib.SMTPException, OSError):
+            try:
+                conn.quit()
+            except Exception:
+                pass
+            logger.debug("Replaced stale SMTP connection from pool")
+            return self._create_connection()
 
     def return_connection(self, conn: smtplib.SMTP):
-        """Return a connection to the pool for reuse.
-        
+        """Return a connection to the pool if healthy, discard otherwise.
+
+        Validates the connection with an SMTP NOOP before returning it.
+        Dead connections are closed and discarded to prevent recycling
+        broken connections back into the pool.
+
         Args:
             conn: SMTP connection to return
         """
         try:
+            conn.noop()
             self._pool.put_nowait(conn)
-        except queue.Full:
-            # Pool is full, close this connection
+        except (smtplib.SMTPException, OSError):
             try:
                 conn.quit()
-            except Exception as e:
-                logger.debug(f"Error closing excess connection: {e}")
+            except Exception:
+                pass
+            logger.debug("Discarded unhealthy SMTP connection")
+        except queue.Full:
+            try:
+                conn.quit()
+            except Exception:
+                pass
 
     def close_all(self):
         """Close all connections in the pool."""
         closed = 0
         failed = 0
-        
-        while not self._pool.empty():
+
+        while True:
             try:
                 conn = self._pool.get_nowait()
+            except queue.Empty:
+                break
+            try:
                 conn.quit()
                 closed += 1
-            except Exception as e:
+            except Exception:
                 failed += 1
-                logger.debug(f"Error closing connection during cleanup: {e}")
-        
+
         if closed > 0 or failed > 0:
             logger.info(f"SMTP pool closed: {closed} connections closed, {failed} errors")
+
+    def __enter__(self):
+        """Support usage as a context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Close all connections on context exit."""
+        self.close_all()
+        return False
 
 
 @lru_cache(maxsize=1)
 def load_template() -> str:
     """Load the email template from disk (cached after first load).
-    
+
     Returns:
         HTML email template string
-        
+
     Raises:
         FileNotFoundError: If template file not found
     """
     template_path = os.path.join(
         os.path.dirname(__file__), "..", "templates", "email_report.html"
     )
-    
+
     try:
         with open(template_path, "r") as f:
             return f.read()
@@ -180,10 +230,10 @@ def load_template() -> str:
 
 def convert_markdown_to_html(markdown_content: str) -> str:
     """Convert markdown content to HTML.
-    
+
     Args:
         markdown_content: Markdown text to convert
-        
+
     Returns:
         HTML representation of the markdown
     """
@@ -192,12 +242,12 @@ def convert_markdown_to_html(markdown_content: str) -> str:
 
 def render_template(html_content: str) -> str:
     """Render the email template with HTML content.
-    
+
     Args:
         html_content: HTML content to insert into template
-        
+
     Returns:
-        Complete HTML email body
+        Complete HTML email body.
     """
     template = load_template()
     return template.replace("{{CONTENT}}", html_content)
@@ -210,13 +260,13 @@ def create_mime_message(
     html_body: str,
 ) -> MIMEText:
     """Create a MIME email message.
-    
+
     Args:
         from_email: Sender email address
         to_email: Recipient email address
         subject: Email subject line
         html_body: HTML email body
-        
+
     Returns:
         MIMEText message object ready to send
     """
@@ -225,3 +275,55 @@ def create_mime_message(
     msg["To"] = to_email
     msg["Subject"] = subject
     return msg
+
+
+def send_single_email(
+    pool: SMTPConnectionPool,
+    email: str,
+    subject: str,
+    html_body: str,
+    failures: queue.Queue,
+) -> bool:
+    """Send a single email using a pooled connection and track failures.
+
+    Retrieves a connection from the pool, sends the email, and returns
+    the connection. On failure, the error is recorded to the thread-safe
+    failures queue and the connection is returned (the pool's health check
+    will discard it if it is no longer usable).
+
+    Args:
+        pool: SMTP connection pool
+        email: Recipient email address
+        subject: Email subject line
+        html_body: HTML email body
+        failures: Thread-safe queue for tracking delivery failures
+
+    Returns:
+        True if email sent successfully, False otherwise
+    """
+    conn = None
+    try:
+        conn = pool.get_connection(timeout=30)
+
+        msg = create_mime_message(
+            os.environ["SMTP_EMAIL"],
+            email,
+            subject,
+            html_body,
+        )
+
+        conn.sendmail(os.environ["SMTP_EMAIL"], email, msg.as_string())
+
+        return True
+    except Exception as e:
+        failures.put(
+            {
+                "email": email,
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        return False
+    finally:
+        if conn:
+            pool.return_connection(conn)

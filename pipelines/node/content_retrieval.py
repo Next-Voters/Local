@@ -26,8 +26,10 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
     if not urls:
         return {**inputs, "legislation_content": []}
 
-    # Tavily API has a hard limit of 20 URLs per extraction request
-    urls = urls[:20]
+    # Cap URLs to avoid context overflow in downstream LLM calls.
+    # 20 content-rich pages (e.g. NYC) can exceed the 272K-token input limit
+    # even after LLMLingua-2 compression; 10 sources is ample for research quality.
+    urls = urls[:10]
 
     url_to_content: dict[str, str] = {}
     try:

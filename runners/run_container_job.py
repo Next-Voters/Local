@@ -22,8 +22,9 @@ warnings.filterwarnings(
     message=r"(?s)^Pydantic serializer warnings:.*PydanticSerializationUnexpectedValue\(.*field_name=['\"]parsed['\"]",
 )
 
-from utils.supabase_client import get_supported_cities_from_db
-from global_data.build_city_reports_dict import build_city_reports_dict
+from utils.supabase_client import get_supported_cities_from_db, get_supported_topics
+from utils import report_cache
+from utils.report_translator import translate_all_reports
 from pipelines.nv_local import run_pipeline
 from pipelines.node.email_dispatcher import dispatch_emails_to_subscribers
 
@@ -31,28 +32,31 @@ logger = logging.getLogger(__name__)
 
 
 def run_pipeline_instances(
-    pipeline_runner: Callable[[str], dict[str, Any]],
-    targets: Sequence[str],
-) -> dict[str, dict[str, Any]]:
-    """Execute one pipeline instance per target concurrently."""
+    pipeline_runner: Callable[[str, str], dict[str, Any]],
+    targets: Sequence[tuple[str, str]],
+) -> dict[tuple[str, str], dict[str, Any]]:
+    """Execute one pipeline instance per (city, topic) target concurrently."""
 
     ordered_targets = tuple(targets)
-    results_by_target: dict[str, dict[str, Any]] = {}
+    results_by_target: dict[tuple[str, str], dict[str, Any]] = {}
 
     if not ordered_targets:
         return results_by_target
 
     with ThreadPoolExecutor(max_workers=len(ordered_targets)) as executor:
         futures = {
-            executor.submit(pipeline_runner, target): target
-            for target in ordered_targets
+            executor.submit(pipeline_runner, city, topic): (city, topic)
+            for city, topic in ordered_targets
         }
 
         for future in as_completed(futures):
             target = futures[future]
+            city, topic = target
 
             try:
-                results_by_target[target] = future.result()
+                result = future.result()
+                results_by_target[target] = result
+                report_cache.store(city, topic, result.get("markdown_report", ""))
             except Exception as exc:  # noqa: BLE001
                 results_by_target[target] = {
                     "error": f"{type(exc).__name__}: {exc}",
@@ -63,45 +67,49 @@ def run_pipeline_instances(
 
 
 def render_pipeline_reports_markdown(
-    results_by_target: Mapping[str, dict[str, Any]],
-    targets: Sequence[str],
+    results_by_target: Mapping[tuple[str, str], dict[str, Any]],
+    targets: Sequence[tuple[str, str]],
 ) -> str:
     """Render multi-target pipeline results as a markdown document."""
 
     sections: list[str] = []
 
     for target in targets:
+        city, topic = target
+        label = f"{city} ({topic})" if topic else city
         target_result = results_by_target.get(target, {})
         report = target_result.get("markdown_report", "")
         error_message = target_result.get("error")
 
-        sections.append(f"## {target}")
+        sections.append(f"## {label}")
 
         if error_message:
             sections.append(f"**Error:** `{error_message}`")
         elif report:
             sections.append(report)
         else:
-            sections.append("_No markdown report was generated for this city._")
+            sections.append(f"_No markdown report was generated for {label}._")
 
     return "\n\n".join(sections)
 
 
-def run_pipelines_for_cities(
+def run_pipelines_for_cities_and_topics(
     cities: Sequence[str],
-) -> dict[str, dict[str, Any]]:
-    """Execute the NV Local pipeline concurrently for multiple cities."""
+    topics: Sequence[str],
+) -> dict[tuple[str, str], dict[str, Any]]:
+    """Execute the NV Local pipeline concurrently for all (city, topic) pairs."""
 
-    return run_pipeline_instances(run_pipeline, cities)
+    targets = [(city, topic) for city in cities for topic in topics]
+    return run_pipeline_instances(run_pipeline, targets)
 
 
-def render_city_reports_markdown(
-    results_by_city: Mapping[str, dict[str, Any]],
-    cities: Sequence[str],
+def render_city_topic_reports_markdown(
+    results: Mapping[tuple[str, str], dict[str, Any]],
+    targets: Sequence[tuple[str, str]],
 ) -> str:
-    """Render city pipeline results as a markdown document."""
+    """Render (city, topic) pipeline results as a markdown document."""
 
-    return render_pipeline_reports_markdown(results_by_city, cities)
+    return render_pipeline_reports_markdown(results, targets)
 
 
 def _env_flag(name: str) -> bool:
@@ -120,16 +128,23 @@ def main() -> int:
     quiet = _env_flag("NV_QUIET")
 
     try:
-        # Get supported cities from Supabase (no env var fallback)
         cities = get_supported_cities_from_db()
-        logger.info(f"Running pipeline for {len(cities)} cities: {cities}")
+        logger.info(f"Loaded {len(cities)} supported cities: {cities}")
     except Exception as e:
         logger.error(f"Failed to get supported cities: {e}")
         return 1
 
-    # Run pipelines for all cities
-    results_by_city = run_pipelines_for_cities(cities)
-    report = render_city_reports_markdown(results_by_city, cities)
+    try:
+        topics = get_supported_topics()
+        logger.info(f"Loaded {len(topics)} supported topics: {topics}")
+    except Exception as e:
+        logger.error(f"Failed to get supported topics: {e}")
+        return 1
+
+    # Run pipelines for all (city, topic) pairs
+    targets = [(city, topic) for city in cities for topic in topics]
+    results = run_pipeline_instances(run_pipeline, targets)
+    report = render_pipeline_reports_markdown(results, targets)
 
     if output_path:
         output_file = Path(output_path)
@@ -139,25 +154,29 @@ def main() -> int:
     if not quiet:
         print(report)
 
-    # Build reports dictionary and dispatch emails
+    # Translate and dispatch emails using cached reports
     try:
-        reports_by_city = build_city_reports_dict(results_by_city)
+        all_reports = report_cache.get_all()
+
+        logger.info("Translating reports to Spanish and French...")
+        translations = translate_all_reports(all_reports)
+        report_cache.store_all_translations(translations)
+
         logger.info("Dispatching emails to subscribers...")
-        dispatch_emails_to_subscribers(reports_by_city)
+        dispatch_emails_to_subscribers(all_reports, translations=translations)
     except Exception as e:
-        logger.error(f"Failed to dispatch emails: {e}")
-        # Don't fail the entire job if email dispatch fails
+        logger.error(f"Failed to translate/dispatch emails: {e}")
         logger.info("Continuing despite email dispatch failure")
 
     errors = {
-        city: result.get("error")
-        for city, result in results_by_city.items()
+        f"{city} ({topic})": result.get("error")
+        for (city, topic), result in results.items()
         if result.get("error")
     }
 
     if errors:
-        for city, message in errors.items():
-            print(f"ERROR {city}: {message}", file=sys.stderr)
+        for label, message in errors.items():
+            print(f"ERROR {label}: {message}", file=sys.stderr)
         return 1
 
     return 0
