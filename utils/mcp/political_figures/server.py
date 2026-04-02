@@ -7,6 +7,7 @@ commentary from web pages, and searching politician tweets via tweepy.
 Usage: python -m utils.mcp.political_figures.server
 """
 
+import datetime
 import logging
 import os
 import re
@@ -131,7 +132,7 @@ def _fetch_canadian_political_figures(city: str) -> list[dict[str, Any]]:
 def _fetch_american_political_figures(city: str) -> list[dict[str, Any]]:
     """Fetch American political figures using the We Vote API."""
     we_vote_base_url = "https://api.wevoteusa.org/apis/v1/candidatesQuery"
-    current_year = "2026"
+    current_year = str(datetime.date.today().year)
     params = {"electionDay": current_year, "searchText": city}
     response = requests.get(we_vote_base_url, params=params, timeout=30)
     response.raise_for_status()
@@ -190,28 +191,6 @@ def find_political_figures(city: str) -> dict:
         return {"figures": figures, "country": country}
     except Exception as e:
         return {"error": f"Failed to find political figures: {e}", "figures": [], "country": country}
-
-
-@mcp.tool
-def fetch_page_content(url: str) -> dict:
-    """Fetch the raw text content from a URL.
-
-    Args:
-        url: The URL to fetch content from.
-
-    Returns:
-        Dict with "content" key containing the page text (truncated to 15000 chars).
-    """
-    try:
-        headers = {
-            "User-Agent": "PoliticalCommentaryAgent/1.0",
-            "Accept": "text/html,application/xhtml+xml",
-        }
-        response = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
-        response.raise_for_status()
-        return {"content": response.text[:15000]}
-    except Exception as e:
-        return {"content": f"Failed to fetch content: {e}"}
 
 
 @mcp.tool

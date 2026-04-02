@@ -123,7 +123,7 @@ async def search_political_commentary(
         politician: The name of the politician to search commentary for.
         city: The city context for local political content (from state).
         tool_call_id: Injected by LangGraph — used to associate the ToolMessage.
-        max_results: Maximum number of results to return (default 5).
+        max_results: Maximum number of results to return (default 3).
 
     Returns:
         A Command object that updates the state with political commentary
@@ -154,14 +154,19 @@ async def search_political_commentary(
         political_commentary = []
         for r in results:
             url = r.get("url", "")
+            if not url:
+                continue
             extraction = await mcp_extract_commentary(
                 url=url, politician=politician, query=query
             )
+            comment = extraction.get("commentary", "")
+            if not comment or comment.startswith(("Failed to", "No commentary found")):
+                continue
             political_commentary.append(
                 {
                     "politician": politician,
                     "source_url": url,
-                    "comment": extraction.get("commentary", ""),
+                    "comment": comment,
                 }
             )
 
@@ -312,10 +317,11 @@ async def search_political_social_media(
 
         summary_lines = [f"Found {len(social_posts)} tweet(s) from {politician}:"]
         for post in social_posts:
+            text = post["text"] or ""
             text_preview = (
-                post["text"][:PREVIEW_MAX_LENGTH] + "..."
-                if len(post["text"]) > PREVIEW_MAX_LENGTH
-                else post["text"]
+                text[:PREVIEW_MAX_LENGTH] + "..."
+                if len(text) > PREVIEW_MAX_LENGTH
+                else text
             )
             summary_lines.append(f"  - {text_preview}")
 
