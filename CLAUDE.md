@@ -87,6 +87,7 @@ legislation_finder → content_retrieval → note_taker → summary_writer
   - `state.py`: `ChainData` TypedDict (pipeline state contract)
   - `pydantic.py`: Structured output schemas (e.g., `WriterOutput`)
 - `mcp/`: Per-service MCP (Model Context Protocol) client + server pairs for Tavily search/extraction, Wikidata reliability analysis, and political figure discovery. Each service lives in its own subdirectory (`tavily/`, `wikidata/`, `political_figures/`) with a `client.py` and `server.py`. Agents call `client.py` functions; `server.py` runs as a FastMCP subprocess via stdio transport. `session.py` provides `MCPSessionManager` for reusing subprocesses across tool calls within one agent invocation (avoids spawning a new process per tool call).
+- `report_cache.py`: Module-level in-memory cache for city pipeline reports. Stores reports incrementally as each pipeline thread completes via `store(city, report)`. Other components retrieve reports via `get(city)`, `get_all()`, or `build_from_results(results)`. The module itself acts as a singleton — import `from utils import report_cache` from anywhere. Replaces the former `global_data/` directory.
 - `context_compressor.py`: LLMLingua-2 wrapper (`compress_text()`) that semantically compresses raw page content before it enters pipeline state, preventing context overflow on large cities.
 - `supabase_client.py`: Loads supported cities from Supabase, manages subscriptions
 
@@ -138,6 +139,14 @@ legislation_finder → content_retrieval → note_taker → summary_writer
 - Pipeline nodes pass `AGENT_RECURSION_LIMIT=25` (from `config/constants.py`) at `ainvoke()` time via the `config` dict, preventing unbounded tool call loops that caused 429 Too Many Requests errors in multi-city runs
 - System prompts for both agents include explicit "Exit Criteria" sections with measurable stopping conditions; `search_political_commentary` defaults to `max_results=3` (was 5)
 - Together these reduce LLM request volume ~40% while maintaining research quality
+
+**In-memory report cache (`utils/report_cache.py`)**
+- Module-level dict cache replaces the former `global_data/build_city_reports_dict.py` one-shot transformation
+- Reports are cached incrementally via `report_cache.store()` as each pipeline thread completes in the `as_completed` loop, rather than batch-transforming all results after the fact
+- The email dispatcher receives reports via `report_cache.get_all()`, which returns a snapshot copy (`dict[str, str]`)
+- Any component can access cached reports by importing the module: `from utils import report_cache`
+- Empty/falsy reports are silently skipped by `store()`, matching the previous filtering behavior
+- Cache is cleared between runs via `clear()` or `build_from_results()`
 
 **Concurrency model**
 - `runners/run_container_job.py` uses `ThreadPoolExecutor` for multi-city runs
