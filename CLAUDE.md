@@ -25,7 +25,8 @@ pip install -r requirements.txt
 
 - Copy `.env.example` to `.env` and set required keys
 - **Critical**: `main.py` does NOT auto-load `.env`; it expects env vars to be present in the shell
-- The main entrypoint is `main.py` → `runners/run_container_job.py` → `pipelines/nv_local.py`
+- **CLI entrypoint**: `main.py` → `pipelines/nv_local.py` (single-city, requires city argument validated against Supabase `supported_cities`)
+- **Docker/Azure entrypoint**: `runners/run_container_job.py` (multi-city concurrent ingestion, must not be modified for CLI changes)
 
 ### Common Commands
 
