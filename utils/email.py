@@ -240,17 +240,77 @@ def convert_markdown_to_html(markdown_content: str) -> str:
     return markdown.markdown(markdown_content)
 
 
+<<<<<<< fix/email-connection
 def render_template(html_content: str) -> str:
     """Render the email template with HTML content.
 
     Args:
         html_content: HTML content to insert into template
+=======
+def build_translation_html(translations_html: dict[str, str]) -> str:
+    """Build styled HTML blocks for translated report sections.
+
+    Args:
+        translations_html: Dict mapping language code to translated HTML content.
+                           Expected keys: "ES" (Spanish), "FR" (French).
+>>>>>>> staging
 
     Returns:
-        Complete HTML email body
+        Combined HTML string with language-headed sections, or empty string.
+    """
+    lang_labels = {
+        "ES": "Informe en Espa\u00f1ol",
+        "FR": "Rapport en Fran\u00e7ais",
+    }
+
+    sections = []
+    for lang_code in ("ES", "FR"):
+        content = translations_html.get(lang_code, "")
+        if not content:
+            continue
+        label = lang_labels.get(lang_code, lang_code)
+        sections.append(
+            f'<!-- TRANSLATION: {lang_code} -->\n'
+            f'<tr>\n'
+            f'    <td style="padding: 0 35px;">\n'
+            f'        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">\n'
+            f'            <tr><td style="height: 1px; background-color: #E63946;"></td></tr>\n'
+            f'        </table>\n'
+            f'    </td>\n'
+            f'</tr>\n'
+            f'<tr>\n'
+            f'    <td style="background-color: #1A1A1A; padding: 10px 35px;">\n'
+            f'        <p style="font-family: \'DM Sans\', Arial, sans-serif; font-size: 13px; color: #FFFFFF; margin: 0; letter-spacing: 1px; font-weight: 500;">{label}</p>\n'
+            f'    </td>\n'
+            f'</tr>\n'
+            f'<tr>\n'
+            f'    <td style="padding: 30px 35px;">\n'
+            f'        {content}\n'
+            f'    </td>\n'
+            f'</tr>'
+        )
+
+    return "\n".join(sections)
+
+
+def render_template(html_content: str, translations_html: dict[str, str] | None = None) -> str:
+    """Render the email template with HTML content and optional translations.
+
+    Args:
+        html_content: HTML content to insert into the main content area.
+        translations_html: Optional dict mapping language code ("ES", "FR")
+                           to translated HTML content.
+
+    Returns:
+        Complete HTML email body.
     """
     template = load_template()
-    return template.replace("{{CONTENT}}", html_content)
+    result = template.replace("{{CONTENT}}", html_content)
+
+    translation_block = build_translation_html(translations_html or {})
+    result = result.replace("{{TRANSLATIONS}}", translation_block)
+
+    return result
 
 
 def create_mime_message(
@@ -326,4 +386,8 @@ def send_single_email(
         return False
     finally:
         if conn:
+<<<<<<< fix/email-connection
             pool.return_connection(conn)
+=======
+            pool.return_connection(conn)
+>>>>>>> staging

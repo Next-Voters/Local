@@ -25,6 +25,11 @@ from utils.mcp.political_figures import (
     extract_commentary,
     search_politician_tweets,
 )
+from utils.mcp.deepl import (
+    get_deepl_session,
+    managed_deepl_session,
+    translate_text,
+)
 
 __all__ = [
     # Tavily
@@ -44,4 +49,8 @@ __all__ = [
     "find_political_figures",
     "extract_commentary",
     "search_politician_tweets",
+    # DeepL
+    "get_deepl_session",
+    "managed_deepl_session",
+    "translate_text",
 ]
