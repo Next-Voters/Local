@@ -4,6 +4,7 @@ import httpx
 from langchain_core.runnables import RunnableLambda
 
 from utils.async_runner import run_async
+from utils.context_compressor import compress_text
 from utils.mcp.tavily import extract_url_content
 from utils.schemas import ChainData
 
@@ -52,7 +53,7 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
     for url in urls:
         content = url_to_content.get(url)
         if content:
-            legislation_content.append(content)
+            legislation_content.append(compress_text(content))
         else:
             legislation_content.append(f"[Failed to fetch: {url}]")
 
