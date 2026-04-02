@@ -1,92 +1,47 @@
-"""Translate cached pipeline reports to Spanish and French via DeepL MCP.
+"""Translate cached pipeline reports to Spanish and French via the DeepL SDK.
 
-This module provides a sync entry point that translates all reports in the
-report cache to the supported target languages. Translation is optional —
-if DEEPL_API_KEY is not set, translation is skipped gracefully.
+This module provides a synchronous, deterministic translation layer that
+translates all reports in the report cache to the supported target languages.
+Translation is optional — if DEEPL_API_KEY is not set, translation is skipped
+gracefully.
 """
 
-from __future__ import annotations
-
-import asyncio
 import logging
 import os
-from typing import Any
 
-from utils.async_runner import run_async
+import deepl
 
 logger = logging.getLogger(__name__)
 
-TARGET_LANGUAGES = ("ES", "FR")
+LANG_MAP = {"Spanish": "ES", "French": "FR"}
+TARGET_LANGUAGES = tuple(LANG_MAP.values())
 
 
-async def _translate_single(
-    text: str, target_lang: str
-) -> dict[str, Any]:
-    """Translate a single text string via the DeepL MCP client."""
-    from utils.mcp.deepl.client import translate_text
-
-    return await translate_text(text, target_lang)
-
-
-async def _translate_all_reports_async(
-    reports: dict[str, dict[str, str]],
-) -> dict[str, dict[str, dict[str, str]]]:
-    """Translate all reports to all target languages concurrently.
-
-    Args:
-        reports: Nested dict of {city: {topic: markdown_report}}.
+def _get_translator() -> deepl.Translator | None:
+    """Create a DeepL Translator instance from the environment API key.
 
     Returns:
-        Nested dict of {city: {topic: {lang_code: translated_report}}}.
+        Translator instance, or None if DEEPL_API_KEY is not set.
     """
-    from utils.mcp.deepl.client import managed_deepl_session
+    api_key = os.getenv("DEEPL_API_KEY")
+    if not api_key:
+        return None
+    return deepl.Translator(api_key)
 
-    translations: dict[str, dict[str, dict[str, str]]] = {}
 
-    # Collect all (city, topic, lang, text) translation jobs
-    jobs: list[tuple[str, str, str, str]] = []
-    for city, topics in reports.items():
-        for topic, text in topics.items():
-            if not text:
-                continue
-            for lang in TARGET_LANGUAGES:
-                jobs.append((city, topic, lang, text))
+def translate_text(translator: deepl.Translator, text: str, target_lang: str) -> str:
+    """Translate a single text string using the DeepL SDK.
 
-    if not jobs:
-        return translations
+    Args:
+        translator: Initialized DeepL Translator instance.
+        text: Source text to translate.
+        target_lang: Target language code (e.g. "ES", "FR").
 
-    logger.info(f"Translating {len(jobs)} report segments ({len(jobs) // len(TARGET_LANGUAGES)} reports x {len(TARGET_LANGUAGES)} languages)")
-
-    async with managed_deepl_session():
-        tasks = [
-            _translate_single(text, lang)
-            for _, _, lang, text in jobs
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    for (city, topic, lang, _), result in zip(jobs, results):
-        if isinstance(result, Exception):
-            logger.warning(f"Translation failed for {city}/{topic}/{lang}: {result}")
-            continue
-
-        translated_text = result.get("translated_text", "")
-        if result.get("error"):
-            logger.warning(f"Translation error for {city}/{topic}/{lang}: {result['error']}")
-            continue
-
-        if not translated_text:
-            continue
-
-        translations.setdefault(city, {}).setdefault(topic, {})[lang] = translated_text
-
-    total = sum(
-        len(langs)
-        for topics in translations.values()
-        for langs in topics.values()
-    )
-    logger.info(f"Successfully translated {total}/{len(jobs)} report segments")
-
-    return translations
+    Returns:
+        Translated text string.
+    """
+    result = translator.translate_text(text, target_lang=target_lang)
+    return result.text
 
 
 def translate_all_reports(
@@ -94,20 +49,38 @@ def translate_all_reports(
 ) -> dict[str, dict[str, dict[str, str]]]:
     """Translate all cached reports to Spanish and French.
 
-    Sync entry point that wraps the async implementation.
-    Returns empty dict if DEEPL_API_KEY is not set.
-
     Args:
         reports: Nested dict of {city: {topic: markdown_report}}.
 
     Returns:
         Nested dict of {city: {topic: {lang_code: translated_report}}}.
+        Returns empty dict if DEEPL_API_KEY is not set or reports is empty.
     """
-    if not os.getenv("DEEPL_API_KEY"):
+    translator = _get_translator()
+    if translator is None:
         logger.info("DEEPL_API_KEY not set; skipping report translation")
         return {}
 
     if not reports:
         return {}
 
-    return run_async(lambda: _translate_all_reports_async(reports))
+    translations: dict[str, dict[str, dict[str, str]]] = {}
+    total_jobs = 0
+    successful = 0
+
+    for city, topics in reports.items():
+        for topic, text in topics.items():
+            if not text:
+                continue
+            for lang in TARGET_LANGUAGES:
+                total_jobs += 1
+                try:
+                    translated = translate_text(translator, text, lang)
+                    if translated:
+                        translations.setdefault(city, {}).setdefault(topic, {})[lang] = translated
+                        successful += 1
+                except Exception as e:
+                    logger.warning(f"Translation failed for {city}/{topic}/{lang}: {e}")
+
+    logger.info(f"Successfully translated {successful}/{total_jobs} report segments")
+    return translations

@@ -8,8 +8,9 @@ This refactor enforces consistency for supported cities and topics by centralizi
 | --- | --- | --- |
 | `contact` | `text` | Primary key; subscriber email or handle. |
 | `city` | `text` | Foreign key → `supported_cities.city`. |
+| `preferred_language` | `text` | Nullable foreign key → `supported_languages.language`. Defaults to `NULL` (treated as English). |
 
-Each subscription holds a unique contact identifier and references exactly one city. Topics are no longer stored directly; instead, the many-to-many relationship is managed through the `subscription_topics` junction table.
+Each subscription holds a unique contact identifier, references exactly one city, and optionally specifies a preferred report language. Topics are managed through the `subscription_topics` junction table.
 
 ## supported_cities
 
@@ -18,6 +19,15 @@ Each subscription holds a unique contact identifier and references exactly one c
 | `city` | `text` | Primary key; canonical city label referenced by `subscriptions.city`. |
 
 This lookup table constrains subscriptions to the vetted list of launch markets while keeping the city strings human-readable.
+
+## supported_languages
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `language` | `text` | Primary key; canonical language name referenced by `subscriptions.preferred_language`. |
+| `description` | `text` | Human-readable label (e.g., "Español", "Français"). |
+
+This lookup table constrains the `preferred_language` column on subscriptions. Seeded with English, Spanish, and French. New languages must be inserted here before they can be assigned to subscribers.
 
 ## supported_topics
 
@@ -43,12 +53,14 @@ This junction table implements the **many-to-many relationship** between subscri
 ```mermaid
 erDiagram
     supported_cities ||--o{ subscriptions : "city"
+    supported_languages ||--o{ subscriptions : "preferred_language"
     supported_topics ||--o{ subscription_topics : "topic_id"
     subscriptions ||--o{ subscription_topics : "contact"
 ```
 
 The diagram shows:
 - `supported_cities` supplies city references that `subscriptions` must conform to (one-to-many).
+- `supported_languages` supplies language references that `subscriptions.preferred_language` must conform to (one-to-many, nullable).
 - `subscriptions` and `supported_topics` are linked through the `subscription_topics` junction table, forming a many-to-many relationship. This allows any subscription to span multiple topics, and any topic to be selected by multiple subscribers.
 - Formal foreign-key constraints are enforced on all edges, preventing orphaned references and maintaining data integrity across the entire schema.
 
@@ -65,7 +77,8 @@ The diagram shows:
 All tables are queried via `utils/supabase_client.py`:
 
 - `get_supported_topics()` → `list[str]` of topic names from `supported_topics`
-- `get_all_subscribers_with_cities_and_topics()` → `list[dict]` with `contact`, `city`, and `topics` keys (uses PostgREST nested join through `subscription_topics`)
+- `get_supported_languages()` → `list[str]` of language names from `supported_languages`
+- `get_all_subscribers_with_cities_and_topics()` → `list[dict]` with `contact`, `city`, `topics`, and `preferred_language` keys (uses PostgREST nested join through `subscription_topics`)
 - `get_subscribers_for_topic(topic)` → `list[str]` of emails via `subscription_topics` inner join
 
-The email dispatcher (`pipelines/node/email_dispatcher.py`) uses subscriber topic preferences to build per-subscriber filtered emails containing only their selected topics' reports.
+The email dispatcher (`pipelines/node/email_dispatcher.py`) uses subscriber topic and language preferences to build per-subscriber filtered emails in their preferred language.

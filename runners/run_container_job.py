@@ -160,6 +160,7 @@ def main() -> int:
 
         logger.info("Translating reports to Spanish and French...")
         translations = translate_all_reports(all_reports)
+        report_cache.store_all_translations(translations)
 
         logger.info("Dispatching emails to subscribers...")
         dispatch_emails_to_subscribers(all_reports, translations=translations)
