@@ -108,7 +108,7 @@ async def search_political_commentary(
     politician: str,
     city: Annotated[str, InjectedState("city")],
     tool_call_id: Annotated[str, InjectedToolCallId],
-    max_results: int = 5,
+    max_results: int = 3,
 ) -> Command:
     """Search for political commentary and extract the politician's statements.
 
