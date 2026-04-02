@@ -37,9 +37,12 @@ class ChainData(TypedDict):
     """Data sent through the chain of AI components."""
 
     city: NotRequired[str]
-    legislation_sources: NotRequired[str]
+    topic: NotRequired[str]
+    legislation_sources: NotRequired[list[str | ReliableLegislationSources]]
+    legislation_content: NotRequired[list[str]]
     notes: NotRequired[str]
     legislation_summary: NotRequired[WriterOutput]
+    politician_public_statements: NotRequired[list[dict[str, object]]]
     markdown_report: NotRequired[str]
 
 

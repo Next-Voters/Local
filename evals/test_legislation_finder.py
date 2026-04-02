@@ -55,7 +55,7 @@ class TestLegislationFinderAgent:
             }
         }
 
-        from tools.legislation_finder import web_search
+        from agents.legislation_finder import web_search
 
         result = web_search.invoke(f"{self.city} city council legislation 2024")
 
@@ -66,7 +66,7 @@ class TestLegislationFinderAgent:
             for r in result["web"]["results"]
         )
 
-    @patch("tools.legislation_finder.reliability_analysis.invoke")
+    @patch("agents.legislation_finder.reliability_analysis.invoke")
     def test_reliability_analysis_scores_sources(self, mock_reliability: MagicMock):
         """Test that reliability analysis assigns scores to sources."""
         mock_reliability.return_value = {
@@ -84,7 +84,7 @@ class TestLegislationFinderAgent:
             ]
         }
 
-        from tools.legislation_finder import reliability_analysis
+        from agents.legislation_finder import reliability_analysis
 
         sources = [
             {
@@ -229,17 +229,17 @@ class TestLegislationFinderEdgeCases:
 
     def test_no_legislation_found(self):
         """Test handling when no legislation is found."""
-        with patch("tools.legislation_finder.web_search.invoke") as mock_search:
+        with patch("agents.legislation_finder.web_search.invoke") as mock_search:
             mock_search.return_value = {"web": {"results": []}}
 
-            from tools.legislation_finder import web_search
+            from agents.legislation_finder import web_search
 
             result = web_search.invoke("nonexistent city xyz123 legislation")
             assert result["web"]["results"] == []
 
     def test_invalid_source_urls(self):
         """Test handling of invalid source URLs."""
-        with patch("tools.legislation_finder.reliability_analysis.invoke") as mock:
+        with patch("agents.legislation_finder.reliability_analysis.invoke") as mock:
             mock.return_value = {
                 "analyses": [
                     {
@@ -250,7 +250,7 @@ class TestLegislationFinderEdgeCases:
                 ]
             }
 
-            from tools.legislation_finder import reliability_analysis
+            from agents.legislation_finder import reliability_analysis
 
             result = reliability_analysis.invoke(
                 {"sources": [{"url": "not-a-valid-url"}]}

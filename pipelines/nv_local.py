@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from utils.supabase_client import get_supported_cities_from_db
+from utils.supabase_client import get_supported_cities_from_db, get_supported_topics
 from pipelines.node.content_retrieval import content_retrieval_chain
 from pipelines.node.email_sender import email_sender_chain
 from pipelines.node.legislation_finder import legislation_finder_chain
@@ -28,10 +28,10 @@ chain = (
 )
 
 
-def run_pipeline(city: str) -> dict[str, Any]:
-    """Execute the LangGraph chain for the given city."""
+def run_pipeline(city: str, topic: str = "") -> dict[str, Any]:
+    """Execute the LangGraph chain for the given city and topic."""
 
-    return chain.invoke({"city": city})
+    return chain.invoke({"city": city, "topic": topic})
 
 
 def main() -> None:
@@ -50,6 +50,20 @@ def main() -> None:
         choices=cities,
         help="City to run the NV Local pipeline for.",
     )
+    # Load supported topics for CLI choices
+    try:
+        topics = get_supported_topics()
+    except Exception as e:
+        print(f"Error: Failed to get supported topics from Supabase: {e}")
+        raise
+
+    parser.add_argument(
+        "-t",
+        "--topic",
+        choices=topics,
+        default="",
+        help="Topic to scope the pipeline research to.",
+    )
     parser.add_argument(
         "-o",
         "--output",
@@ -64,8 +78,9 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    print(f"Running NV Local pipeline for {args.city}...")
-    result = run_pipeline(args.city)
+    label = f"{args.city}" + (f" ({args.topic})" if args.topic else "")
+    print(f"Running NV Local pipeline for {label}...")
+    result = run_pipeline(args.city, args.topic)
     report = result.get("markdown_report", "")
 
     if args.output:

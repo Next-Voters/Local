@@ -1,0 +1,22 @@
+name: "Legislation Search"
+description: "Municipal legislation search profile with authoritative-source bias"
+query_prefix: "city council legislation"
+append_city: true
+search_depth: "advanced"
+topic: "general"
+days: 60
+max_results_cap: 20
+include_domains:
+  - "legistar.com"
+  - "municode.com"
+  - "apnews.com"
+  - "reuters.com"
+  - "ballotpedia.org"
+  - "govtrack.us"
+exclude_domains:
+  - "twitter.com"
+  - "x.com"
+  - "facebook.com"
+  - "instagram.com"
+  - "medium.com"
+  - "substack.com"

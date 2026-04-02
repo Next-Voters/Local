@@ -3,9 +3,9 @@ DEFAULT_MAX_TOKENS = 2000
 DEFAULT_TIMEOUT = 30
 
 
-MINI_LLM_CONFIG = {
-    "model": "gpt-4o-mini",
+DEFAULT_LLM_CONFIG = {
+    "model": "gpt-5",
     "temperature": 0.0,
-    "max_tokens": 1500,
-    "timeout": 30,
+    "max_tokens": 16384,
+    "timeout": 60,
 }

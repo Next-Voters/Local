@@ -10,15 +10,15 @@ from .config import (
     DEFAULT_TEMPERATURE,
     DEFAULT_MAX_TOKENS,
     DEFAULT_TIMEOUT,
-    MINI_LLM_CONFIG,
+    DEFAULT_LLM_CONFIG,
 )
 
 
 def get_llm(
-    model: str = "gpt-4o-mini",
+    model: str = DEFAULT_LLM_CONFIG["model"],
     temperature: float = DEFAULT_TEMPERATURE,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    timeout: int = DEFAULT_TIMEOUT,
+    max_tokens: int = DEFAULT_LLM_CONFIG["max_tokens"],
+    timeout: int = DEFAULT_LLM_CONFIG["timeout"],
     **kwargs,
 ) -> ChatOpenAI:
     return ChatOpenAI(
@@ -32,20 +32,20 @@ def get_llm(
 
 def get_mini_llm(**kwargs) -> ChatOpenAI:
     return get_llm(
-        model=MINI_LLM_CONFIG["model"],
-        temperature=MINI_LLM_CONFIG["temperature"],
-        max_tokens=MINI_LLM_CONFIG["max_tokens"],
-        timeout=MINI_LLM_CONFIG["timeout"],
+        model=DEFAULT_LLM_CONFIG["model"],
+        temperature=DEFAULT_LLM_CONFIG["temperature"],
+        max_tokens=DEFAULT_LLM_CONFIG["max_tokens"],
+        timeout=DEFAULT_LLM_CONFIG["timeout"],
         **kwargs,
     )
 
 
 def get_structured_llm(
     output_schema: Type[T],
-    model: str = "gpt-4o-mini",
+    model: str = DEFAULT_LLM_CONFIG["model"],
     temperature: float = DEFAULT_TEMPERATURE,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    timeout: int = DEFAULT_TIMEOUT,
+    max_tokens: int = DEFAULT_LLM_CONFIG["max_tokens"],
+    timeout: int = DEFAULT_LLM_CONFIG["timeout"],
     **kwargs,
 ) -> Runnable[Any, T]:
     base_llm = get_llm(
@@ -55,4 +55,15 @@ def get_structured_llm(
         timeout=timeout,
         **kwargs,
     )
-    return base_llm.with_structured_output(output_schema)
+    return base_llm.with_structured_output(output_schema, include_raw=False)
+
+
+def get_structured_mini_llm(output_schema: Type[T], **kwargs) -> Runnable[Any, T]:
+    return get_structured_llm(
+        output_schema=output_schema,
+        model=DEFAULT_LLM_CONFIG["model"],
+        temperature=DEFAULT_LLM_CONFIG["temperature"],
+        max_tokens=DEFAULT_LLM_CONFIG["max_tokens"],
+        timeout=DEFAULT_LLM_CONFIG["timeout"],
+        **kwargs,
+    )

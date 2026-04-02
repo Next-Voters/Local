@@ -59,3 +59,13 @@ The diagram shows:
 - **Leverage cascade deletes**: if a subscription or topic is deleted, the corresponding junction table rows are automatically removed, keeping the schema clean.
 - **Query patterns**: to fetch all topics for a subscription, join `subscriptions` → `subscription_topics` → `supported_topics`. To find all subscribers of a topic, reverse the join direction.
 - **Maintain referential integrity**: never insert into `subscription_topics` without first ensuring both the subscription and topic exist in their parent tables; the database will reject violations.
+
+## Code Integration
+
+All tables are queried via `utils/supabase_client.py`:
+
+- `get_supported_topics()` → `list[str]` of topic names from `supported_topics`
+- `get_all_subscribers_with_cities_and_topics()` → `list[dict]` with `contact`, `city`, and `topics` keys (uses PostgREST nested join through `subscription_topics`)
+- `get_subscribers_for_topic(topic)` → `list[str]` of emails via `subscription_topics` inner join
+
+The email dispatcher (`pipelines/node/email_dispatcher.py`) uses subscriber topic preferences to build per-subscriber filtered emails containing only their selected topics' reports.

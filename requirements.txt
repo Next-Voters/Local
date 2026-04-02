@@ -10,3 +10,8 @@ requests
 pyyaml
 supabase
 markdown
+tweepy
+openai
+fastmcp
+tavily-python
+llmlingua

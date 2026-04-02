@@ -78,28 +78,28 @@ class TestPoliticalCommentaryAgent:
         assert "political_figures" in result
         assert len(result["political_figures"]) >= 1
 
-    @patch("tools.political_commentary_finder.political_figure_finder.invoke")
+    @patch("agents.political_commentary_finder.political_figure_finder.invoke")
     def test_political_figure_finder_tool(
         self, mock_find: MagicMock, sample_politician_data: list[dict]
     ):
         """Test political figure finder tool."""
         mock_find.return_value = {"results": self.politician_data}
 
-        from tools.political_commentary_finder import political_figure_finder
+        from agents.political_commentary_finder import political_figure_finder
 
         result = political_figure_finder.invoke(f"Political figures in {self.city}")
 
         assert "results" in result
         assert len(result["results"]) == 3
 
-    @patch("tools.political_commentary_finder.search_political_commentary.invoke")
+    @patch("agents.political_commentary_finder.search_political_commentary.invoke")
     def test_commentary_search_tool(
         self, mock_search: MagicMock, sample_political_statements: list[dict]
     ):
         """Test political commentary search tool."""
         mock_search.return_value = {"results": self.statements}
 
-        from tools.political_commentary_finder import search_political_commentary
+        from agents.political_commentary_finder import search_political_commentary
 
         result = search_political_commentary.invoke("Olivia Chow statements on housing")
 
@@ -288,11 +288,11 @@ class TestPoliticalCommentaryEdgeCases:
     def test_no_politicians_found(self):
         """Test handling when no politicians are found."""
         with patch(
-            "tools.political_commentary_finder.political_figure_finder.invoke"
+            "agents.political_commentary_finder.political_figure_finder.invoke"
         ) as mock:
             mock.return_value = {"results": []}
 
-            from tools.political_commentary_finder import political_figure_finder
+            from agents.political_commentary_finder import political_figure_finder
 
             result = political_figure_finder.invoke("Nonexistent City Politicians")
             assert result["results"] == []
@@ -311,11 +311,11 @@ class TestPoliticalCommentaryEdgeCases:
     def test_empty_statements(self):
         """Test handling of empty statements."""
         with patch(
-            "tools.political_commentary_finder.search_political_commentary.invoke"
+            "agents.political_commentary_finder.search_political_commentary.invoke"
         ) as mock:
             mock.return_value = {"results": []}
 
-            from tools.political_commentary_finder import search_political_commentary
+            from agents.political_commentary_finder import search_political_commentary
 
             result = search_political_commentary.invoke("Politician statements")
             assert result["results"] == []
