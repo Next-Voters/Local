@@ -10,6 +10,7 @@ import smtplib
 import ssl
 import queue
 import logging
+from datetime import datetime, timezone
 from functools import lru_cache
 from email.mime.text import MIMEText
 
@@ -20,6 +21,18 @@ logger = logging.getLogger(__name__)
 # SMTP Configuration - Read from environment or use defaults
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+
+EMAIL_REQUIRED_ENV = (
+    "SMTP_EMAIL",
+    "SMTP_APP_PASSWORD",
+    "SUPABASE_URL",
+    "SUPABASE_KEY",
+)
+
+
+def is_email_configured() -> bool:
+    """Check if all required email environment variables are set."""
+    return all(os.environ.get(env_var) for env_var in EMAIL_REQUIRED_ENV)
 
 
 class SMTPConnectionPool:
@@ -110,50 +123,86 @@ class SMTPConnectionPool:
             )
 
     def get_connection(self, timeout: int = 30) -> smtplib.SMTP:
-        """Get a connection from the pool.
-        
+        """Get a healthy connection from the pool, replacing stale ones.
+
+        Validates the connection with an SMTP NOOP command after retrieval.
+        If the connection has gone stale, it is discarded and a fresh one
+        is created in its place.
+
         Args:
             timeout: Seconds to wait for a connection to become available
-            
+
         Returns:
-            SMTP connection
-            
+            Healthy SMTP connection
+
         Raises:
             queue.Empty: If timeout expires before connection available
+            smtplib.SMTPException: If reconnection fails
         """
-        return self._pool.get(timeout=timeout)
+        conn = self._pool.get(timeout=timeout)
+        try:
+            conn.noop()
+            return conn
+        except (smtplib.SMTPException, OSError):
+            try:
+                conn.quit()
+            except Exception:
+                pass
+            logger.debug("Replaced stale SMTP connection from pool")
+            return self._create_connection()
 
     def return_connection(self, conn: smtplib.SMTP):
-        """Return a connection to the pool for reuse.
-        
+        """Return a connection to the pool if healthy, discard otherwise.
+
+        Validates the connection with an SMTP NOOP before returning it.
+        Dead connections are closed and discarded to prevent recycling
+        broken connections back into the pool.
+
         Args:
             conn: SMTP connection to return
         """
         try:
+            conn.noop()
             self._pool.put_nowait(conn)
-        except queue.Full:
-            # Pool is full, close this connection
+        except (smtplib.SMTPException, OSError):
             try:
                 conn.quit()
-            except Exception as e:
-                logger.debug(f"Error closing excess connection: {e}")
+            except Exception:
+                pass
+            logger.debug("Discarded unhealthy SMTP connection")
+        except queue.Full:
+            try:
+                conn.quit()
+            except Exception:
+                pass
 
     def close_all(self):
         """Close all connections in the pool."""
         closed = 0
         failed = 0
-        
-        while not self._pool.empty():
+
+        while True:
             try:
                 conn = self._pool.get_nowait()
+            except queue.Empty:
+                break
+            try:
                 conn.quit()
                 closed += 1
-            except Exception as e:
+            except Exception:
                 failed += 1
-                logger.debug(f"Error closing connection during cleanup: {e}")
-        
+
         if closed > 0 or failed > 0:
             logger.info(f"SMTP pool closed: {closed} connections closed, {failed} errors")
+
+    def __enter__(self):
+        """Support usage as a context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Close all connections on context exit."""
+        self.close_all()
+        return False
 
 
 @lru_cache(maxsize=1)
@@ -190,17 +239,69 @@ def convert_markdown_to_html(markdown_content: str) -> str:
     return markdown.markdown(markdown_content)
 
 
-def render_template(html_content: str) -> str:
-    """Render the email template with HTML content.
-    
+def build_translation_html(translations_html: dict[str, str]) -> str:
+    """Build styled HTML blocks for translated report sections.
+
     Args:
-        html_content: HTML content to insert into template
-        
+        translations_html: Dict mapping language code to translated HTML content.
+                           Expected keys: "ES" (Spanish), "FR" (French).
+
     Returns:
-        Complete HTML email body
+        Combined HTML string with language-headed sections, or empty string.
+    """
+    lang_labels = {
+        "ES": "Informe en Espa\u00f1ol",
+        "FR": "Rapport en Fran\u00e7ais",
+    }
+
+    sections = []
+    for lang_code in ("ES", "FR"):
+        content = translations_html.get(lang_code, "")
+        if not content:
+            continue
+        label = lang_labels.get(lang_code, lang_code)
+        sections.append(
+            f'<!-- TRANSLATION: {lang_code} -->\n'
+            f'<tr>\n'
+            f'    <td style="padding: 0 35px;">\n'
+            f'        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">\n'
+            f'            <tr><td style="height: 1px; background-color: #E63946;"></td></tr>\n'
+            f'        </table>\n'
+            f'    </td>\n'
+            f'</tr>\n'
+            f'<tr>\n'
+            f'    <td style="background-color: #1A1A1A; padding: 10px 35px;">\n'
+            f'        <p style="font-family: \'DM Sans\', Arial, sans-serif; font-size: 13px; color: #FFFFFF; margin: 0; letter-spacing: 1px; font-weight: 500;">{label}</p>\n'
+            f'    </td>\n'
+            f'</tr>\n'
+            f'<tr>\n'
+            f'    <td style="padding: 30px 35px;">\n'
+            f'        {content}\n'
+            f'    </td>\n'
+            f'</tr>'
+        )
+
+    return "\n".join(sections)
+
+
+def render_template(html_content: str, translations_html: dict[str, str] | None = None) -> str:
+    """Render the email template with HTML content and optional translations.
+
+    Args:
+        html_content: HTML content to insert into the main content area.
+        translations_html: Optional dict mapping language code ("ES", "FR")
+                           to translated HTML content.
+
+    Returns:
+        Complete HTML email body.
     """
     template = load_template()
-    return template.replace("{{CONTENT}}", html_content)
+    result = template.replace("{{CONTENT}}", html_content)
+
+    translation_block = build_translation_html(translations_html or {})
+    result = result.replace("{{TRANSLATIONS}}", translation_block)
+
+    return result
 
 
 def create_mime_message(
@@ -225,3 +326,55 @@ def create_mime_message(
     msg["To"] = to_email
     msg["Subject"] = subject
     return msg
+
+
+def send_single_email(
+    pool: SMTPConnectionPool,
+    email: str,
+    subject: str,
+    html_body: str,
+    failures: queue.Queue,
+) -> bool:
+    """Send a single email using a pooled connection and track failures.
+
+    Retrieves a connection from the pool, sends the email, and returns
+    the connection. On failure, the error is recorded to the thread-safe
+    failures queue and the connection is returned (the pool's health check
+    will discard it if it is no longer usable).
+
+    Args:
+        pool: SMTP connection pool
+        email: Recipient email address
+        subject: Email subject line
+        html_body: HTML email body
+        failures: Thread-safe queue for tracking delivery failures
+
+    Returns:
+        True if email sent successfully, False otherwise
+    """
+    conn = None
+    try:
+        conn = pool.get_connection(timeout=30)
+
+        msg = create_mime_message(
+            os.environ["SMTP_EMAIL"],
+            email,
+            subject,
+            html_body,
+        )
+
+        conn.sendmail(os.environ["SMTP_EMAIL"], email, msg.as_string())
+
+        return True
+    except Exception as e:
+        failures.put(
+            {
+                "email": email,
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        return False
+    finally:
+        if conn:
+            pool.return_connection(conn)

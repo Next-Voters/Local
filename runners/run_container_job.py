@@ -24,6 +24,7 @@ warnings.filterwarnings(
 
 from utils.supabase_client import get_supported_cities_from_db, get_supported_topics
 from utils import report_cache
+from utils.report_translator import translate_all_reports
 from pipelines.nv_local import run_pipeline
 from pipelines.node.email_dispatcher import dispatch_emails_to_subscribers
 
@@ -153,13 +154,17 @@ def main() -> int:
     if not quiet:
         print(report)
 
-    # Dispatch emails using cached reports
+    # Translate and dispatch emails using cached reports
     try:
         all_reports = report_cache.get_all()
+
+        logger.info("Translating reports to Spanish and French...")
+        translations = translate_all_reports(all_reports)
+
         logger.info("Dispatching emails to subscribers...")
-        dispatch_emails_to_subscribers(all_reports)
+        dispatch_emails_to_subscribers(all_reports, translations=translations)
     except Exception as e:
-        logger.error(f"Failed to dispatch emails: {e}")
+        logger.error(f"Failed to translate/dispatch emails: {e}")
         logger.info("Continuing despite email dispatch failure")
 
     errors = {
