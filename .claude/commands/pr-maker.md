@@ -1,6 +1,8 @@
 ---
 description: Create a PR to the Next-Voters parent repository
 ---
+# Base Branch
+Do NOT use the base branch of main, unless explicitly stated by the developer. Base branch, by default, shall be staging. 
 
 # PR Title Convention
 
