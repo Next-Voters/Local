@@ -73,7 +73,8 @@ async def web_search(
         summary = (
             f"Web search for '{query}' (city: {city}) returned {len(raw_legislation_sources)} result(s):\n"
             + "\n".join(
-                f"  - {s['organization']}: {s['url']}" for s in raw_legislation_sources
+                f"  - [{result.get('score', 0):.2f}] {result.get('title', 'Unknown')}: {result.get('url', 'N/A')}"
+                for result in results
             )
         )
 

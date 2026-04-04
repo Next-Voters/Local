@@ -13,6 +13,10 @@ from __future__ import annotations
 import os
 import sys
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+
+load_dotenv()
 from pathlib import Path
 from typing import Any
 
@@ -97,9 +101,13 @@ async def search_political_content(
 # Result extraction helpers
 # ---------------------------------------------------------------------------
 
-def extract_search_results(raw_results: dict[str, Any]) -> list[dict[str, str]]:
-    """Extract title/url/description from Tavily results."""
-    results = []
+def extract_search_results(raw_results: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract title/url/description/score from Tavily results.
+
+    Results are returned in the order Tavily (or the profile layer) provides
+    them — typically sorted by relevance score descending.
+    """
+    results: list[dict[str, Any]] = []
 
     if isinstance(raw_results, dict):
         tavily_results = raw_results.get("results", [])
@@ -112,6 +120,7 @@ def extract_search_results(raw_results: dict[str, Any]) -> list[dict[str, str]]:
                         "title": str(result.get("title") or "Untitled"),
                         "url": str(result.get("url") or ""),
                         "description": str(result.get("content") or ""),
+                        "score": float(result.get("score", 0.0)),
                     }
                 )
 
