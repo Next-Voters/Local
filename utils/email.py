@@ -14,6 +14,10 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from email.mime.text import MIMEText
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import markdown
 
 logger = logging.getLogger(__name__)

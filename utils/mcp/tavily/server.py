@@ -12,7 +12,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
 from fastmcp import FastMCP
+
+load_dotenv()
 from tavily import TavilyClient
 
 mcp = FastMCP("Tavily")
@@ -130,13 +133,24 @@ def _search_with_profile(
     max_results: int = 10,
     city: str | None = None,
 ) -> dict:
-    """Search Tavily using a named search profile."""
+    """Search Tavily using a named search profile.
+
+    Results are sorted by Tavily's relevance score (descending) and filtered
+    against an optional ``min_score`` threshold from the profile config.
+    """
     profile = _load_search_profile(profile_name)
     client = _get_client()
 
+    # Request extra results so we still have enough after score filtering.
+    min_score = float(profile.get("min_score", 0.0))
+    fetch_count = min(
+        max_results * 2 if min_score > 0 else max_results,
+        int(profile.get("max_results_cap", 20)),
+    )
+
     kwargs: dict[str, Any] = {
         "query": _build_query(query=query, city=city, profile=profile),
-        "max_results": min(max_results, int(profile.get("max_results_cap", 20))),
+        "max_results": fetch_count,
         "search_depth": profile.get("search_depth", "basic"),
         "topic": profile.get("topic", "general"),
         "include_answer": False,
@@ -155,7 +169,21 @@ def _search_with_profile(
     if isinstance(days, int) and days > 0:
         kwargs["days"] = days
 
-    return client.search(**kwargs)
+    raw = client.search(**kwargs)
+
+    # --- Score-based ranking and filtering ---
+    results = raw.get("results", [])
+    if results:
+        # Sort by Tavily relevance score (highest first)
+        results.sort(key=lambda r: float(r.get("score", 0)), reverse=True)
+        # Drop results below the minimum score threshold
+        if min_score > 0:
+            results = [r for r in results if float(r.get("score", 0)) >= min_score]
+        # Trim back to the originally requested count
+        results = results[:max_results]
+        raw["results"] = results
+
+    return raw
 
 
 # ---------------------------------------------------------------------------

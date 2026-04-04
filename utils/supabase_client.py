@@ -12,7 +12,10 @@ import os
 import logging
 from typing import Any
 
+from dotenv import load_dotenv
 from supabase import create_client, Client
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
