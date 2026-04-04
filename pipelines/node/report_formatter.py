@@ -81,6 +81,22 @@ def report_formatter(inputs: ChainData) -> ChainData:
             lines.append(_safe_text(item.get("summary"), "No summary available."))
             lines.append("")
 
+    lines.append("---")
+    lines.append("")
+    lines.append("## Citations")
+    lines.append("")
+
+    legislation_sources = inputs.get("legislation_sources") or []
+    if legislation_sources:
+        for i, source in enumerate(legislation_sources, start=1):
+            url = source.get("url") if isinstance(source, dict) else source
+            if isinstance(url, str) and url.strip():
+                lines.append(f"{i}. {url.strip()}")
+        lines.append("")
+    else:
+        lines.append("No sources available.")
+        lines.append("")
+
     markdown_report = "\n".join(lines)
 
     return {**inputs, "markdown_report": markdown_report}
