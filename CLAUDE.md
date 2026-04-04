@@ -24,7 +24,7 @@ pip install -r requirements.txt
 ### Configuration
 
 - Copy `.env.example` to `.env` and set required keys
-- **Critical**: `main.py` does NOT auto-load `.env`; it expects env vars to be present in the shell
+- All entrypoints and modules that read env vars call `load_dotenv()` from `python-dotenv`, so `.env` is loaded automatically
 - **CLI entrypoint**: `main.py` → `pipelines/nv_local.py` (single-city, requires city argument validated against Supabase `supported_cities`)
 - **Docker/Azure entrypoint**: `runners/run_container_job.py` (multi-city concurrent ingestion, must not be modified for CLI changes)
 

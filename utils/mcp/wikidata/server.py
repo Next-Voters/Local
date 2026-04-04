@@ -13,6 +13,9 @@ import sys
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 from fastmcp import FastMCP
 from openai import OpenAI
 
