@@ -1,7 +1,6 @@
 """Unit tests for LegislationFinderAgent.
 
-Tests the agent's ability to find relevant municipal legislation
-and analyze source reliability.
+Tests the agent's ability to find relevant municipal legislation.
 """
 
 from __future__ import annotations
@@ -65,38 +64,6 @@ class TestLegislationFinderAgent:
             self.city in r["title"] or self.city in r["description"]
             for r in result["web"]["results"]
         )
-
-    @patch("agents.legislation_finder.reliability_analysis.invoke")
-    def test_reliability_analysis_scores_sources(self, mock_reliability: MagicMock):
-        """Test that reliability analysis assigns scores to sources."""
-        mock_reliability.return_value = {
-            "analyses": [
-                {
-                    "url": "https://www.toronto.ca/legdocs/mmis/2024/cc/billd -it/2024-cc-doc-1.pdf",
-                    "reliability_score": 0.95,
-                    "reasoning": "Official city government source",
-                },
-                {
-                    "url": "https://www.thestar.com/toronto/legislation",
-                    "reliability_score": 0.7,
-                    "reasoning": "Established news source but not primary",
-                },
-            ]
-        }
-
-        from agents.legislation_finder import reliability_analysis
-
-        sources = [
-            {
-                "url": "https://www.toronto.ca/legdocs/mmis/2024/cc/billd -it/2024-cc-doc-1.pdf"
-            },
-            {"url": "https://www.thestar.com/toronto/legislation"},
-        ]
-        result = reliability_analysis.invoke({"sources": sources})
-
-        assert "analyses" in result
-        assert len(result["analyses"]) == 2
-        assert all("reliability_score" in a for a in result["analyses"])
 
 
 class TestLegislationAccuracyMetric:
@@ -179,7 +146,7 @@ class TestLegislationFinderIntegration:
         """Test complete agent workflow from query to sources."""
         mock_invoke.return_value = {
             "city": mock_city,
-            "reliable_legislation_sources": [
+            "legislation_sources": [
                 src["url"] for src in sample_legislation_sources[:2]
             ],
             "messages": [],
@@ -189,8 +156,8 @@ class TestLegislationFinderIntegration:
 
         result = legislation_finder_agent.invoke({"city": mock_city})
 
-        assert "reliable_legislation_sources" in result
-        assert len(result["reliable_legislation_sources"]) >= 1
+        assert "legislation_sources" in result
+        assert len(result["legislation_sources"]) >= 1
 
     def test_city_specific_search_queries(self):
         """Test that search queries are city-specific."""
@@ -236,26 +203,6 @@ class TestLegislationFinderEdgeCases:
 
             result = web_search.invoke("nonexistent city xyz123 legislation")
             assert result["web"]["results"] == []
-
-    def test_invalid_source_urls(self):
-        """Test handling of invalid source URLs."""
-        with patch("agents.legislation_finder.reliability_analysis.invoke") as mock:
-            mock.return_value = {
-                "analyses": [
-                    {
-                        "url": "not-a-valid-url",
-                        "reliability_score": 0.0,
-                        "reasoning": "Invalid URL format",
-                    }
-                ]
-            }
-
-            from agents.legislation_finder import reliability_analysis
-
-            result = reliability_analysis.invoke(
-                {"sources": [{"url": "not-a-valid-url"}]}
-            )
-            assert result["analyses"][0]["reliability_score"] == 0.0
 
 
 def run_legislation_finder_evaluation() -> dict[str, Any]:
