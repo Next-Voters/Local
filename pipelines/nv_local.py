@@ -14,15 +14,12 @@ from pipelines.node.note_taker import note_taker_chain
 from pipelines.node.report_formatter import report_formatter_chain
 from pipelines.node.summary_writer import summary_writer_chain
 
-# Pipeline chain without email_sender (email dispatch happens separately)
 chain = (
     legislation_finder_chain
     | content_retrieval_chain
     | note_taker_chain.with_retry()
     | summary_writer_chain.with_retry()
     | report_formatter_chain
-    # Note: email_sender_chain is removed from the main pipeline
-    # Email dispatch now happens in a separate batch operation via email_dispatcher.py
 )
 
 

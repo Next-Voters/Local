@@ -73,7 +73,7 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 ### Core Components
 
 **Agents** (`agents/`):
-- `base_agent_template.py`: Shared ReAct agent template with reflection context management
+- `base_agent_template.py`: Shared ReAct agent template (imports reflection tool from `utils/tools`)
 - `legislation_finder.py`: Discovers legislation sources via web search
 
 **Pipeline Nodes** (`pipelines/node/`):
@@ -95,6 +95,7 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 - `email.py`: Consolidated email utilities — `SMTPConnectionPool` (thread-safe, context manager, NOOP health checks for stale connections), `is_email_configured()`, `load_template()`, `convert_markdown_to_html()`, `render_template()`, `create_mime_message()`, `send_single_email()`. Single source of truth for all SMTP and email rendering logic.
 - `report_translator.py`: Translates all cached pipeline reports to Spanish (ES) and French (FR) synchronously via the DeepL SDK (`deepl` Python package). Uses direct `deepl.Translator` calls (no MCP layer). Exports `LANG_MAP` dict mapping language names to codes (e.g. `{"Spanish": "ES", "French": "FR"}`). Optional — gracefully skipped if `DEEPL_API_KEY` is not set.
 - `context_compressor.py`: LLMLingua-2 wrapper (`compress_text()`) that semantically compresses raw page content before it enters pipeline state, preventing context overflow on large cities.
+- `tools/`: Agent tool adapters with LangChain `@tool` decorators, re-exported via `__init__.py` (e.g., `reflection.py`, `web_search.py`). Agents import tools from here rather than defining them inline.
 - `supabase_client.py`: Loads supported cities, topics, and languages from Supabase, manages subscriptions with topic and language preferences via the `subscription_topics` junction table and `preferred_language` FK
 
 **Templates** (`templates/`):
@@ -139,9 +140,9 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 - Short content (<1000 chars) bypasses compression entirely; model is lazy-loaded on first use, no API key or GPU required
 
 **MCP server architecture for all external tools**
-- All agent tools are thin inline adapters that call FastMCP servers via stdio transport — no custom HTTP clients or manual JSON handling
+- All agent tools are thin adapters in `utils/tools/` that call FastMCP servers via stdio transport — no custom HTTP clients or manual JSON handling
 - Each service (`tavily/`) has a `server.py` that owns the business logic and a `client.py` that manages the session lifecycle
-- The earlier `tools/` directory (shared tool functions passed to agents) was eliminated; tool adapters now live directly in each agent file
+- Tool adapters live in `utils/tools/` with re-exports via `__init__.py`; agents import them rather than defining tools inline
 - `MCPSessionManager` (in `utils/mcp/session.py`) pre-initializes one subprocess per agent invocation and reuses it across all tool calls, preventing the process-per-call overhead that was producing process termination warnings
 
 **Rate limiting: bounded agent iterations**
@@ -220,7 +221,7 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 
 **Agents**
 - Inherit from `BaseReActAgent` (see `agents/base_agent_template.py`)
-- Tools are defined as inline adapter functions directly inside each agent file (not in a separate `tools/` directory — that was deleted in PR #36)
+- Tools are defined in `utils/tools/` and re-exported via `utils/tools/__init__.py`; agents import them (e.g., `from utils.tools import web_search`)
 - Each tool adapter calls the appropriate MCP client function and returns a LangGraph `Command` for state updates
 - Agent builds a LangGraph StateGraph with `call_model` and `tool_node` nodes; `recursion_limit` is applied at invoke-time via the config dict (not at compile-time)
 
@@ -273,9 +274,9 @@ docker run -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... nv-local
 5. Document in `docs/ARCHITECTURE.md`
 
 **Adding an agent tool**:
-1. Define the tool adapter as an inline function directly in the agent file (e.g., `agents/legislation_finder.py`) with LangChain `@tool` decorator — the `tools/` directory no longer exists
+1. Create the tool adapter function in `utils/tools/` with the LangChain `@tool` decorator, then re-export it from `utils/tools/__init__.py`
 2. If the tool needs an external service, add the logic to the appropriate MCP server (`utils/mcp/<service>/server.py`) and call it from a client function (`utils/mcp/<service>/client.py`)
-3. Pass the tool adapter to the agent constructor; it is automatically included in `ToolNode`
+3. Import the tool in the agent file (e.g., `from utils.tools import web_search`) and pass it to the agent constructor; it is automatically included in `ToolNode`
 
 **Changing LLM model or config**:
 1. Update `utils/llm/config.py:DEFAULT_LLM_CONFIG`

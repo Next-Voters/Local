@@ -13,85 +13,18 @@ The agent builds a LangGraph StateGraph with call_model and tool_node nodes,
 implementing the ReAct (Reason + Act) pattern for tool-augmented reasoning.
 """
 
-import json
-from functools import lru_cache
-from typing import Callable, Union, TypeVar, Type, Annotated
+from typing import Callable, Union, TypeVar, Type
 
-from langchain_core.messages import BaseMessage, ToolMessage
-from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
-from langgraph.prebuilt.tool_node import InjectedState
-from langgraph.types import Command
 
 from utils.schemas import ReflectionEntry, BaseAgentState
-from utils.llm import get_llm, get_mini_llm
-from config.system_prompts import reflection_prompt
+from utils.tools import reflection_tool
+from utils.llm import get_llm
 
 StateType = TypeVar("StateType")
 
 _REFLECTION_PREAMBLE = "Here are previous reflections. Use as context to drive your next actions/decisions:\n\n"
-
-
-# ---------------------------------------------------------------------------
-# Reflection tool (shared by all agents)
-# ---------------------------------------------------------------------------
-
-@lru_cache(maxsize=1)
-def _get_mini_model():
-    return get_mini_llm()
-
-
-@tool
-def reflection_tool(
-    tool_call_id: Annotated[str, InjectedToolCallId],
-    messages: Annotated[list[BaseMessage], InjectedState("messages")],
-) -> Command:
-    """Reflects on conversation history to determine the next action."""
-
-    recent_messages = messages[-10:] if len(messages) > 10 else messages
-    conversation_summary = "\n".join(
-        f"{msg.type}: {msg.content[:500]}" for msg in recent_messages if msg.content
-    )
-
-    formatted_prompt = reflection_prompt.format(
-        conversation_summary=conversation_summary,
-    )
-    response = _get_mini_model().invoke(
-        [
-            {"role": "system", "content": formatted_prompt},
-            {
-                "role": "user",
-                "content": "Produce a structured reflection based on the past conversation",
-            },
-        ]
-    )
-
-    # Parse the structured reflection
-    try:
-        reflection_data = json.loads(response.content)
-        entry = ReflectionEntry(
-            reflection=reflection_data.get(
-                "reflection", "Unable to produce reflection."
-            ),
-            gaps_identified=reflection_data.get("gaps_identified", []),
-            next_action=reflection_data.get("next_action", "Continue searching."),
-        )
-    except (json.JSONDecodeError, TypeError):
-        entry = ReflectionEntry(
-            reflection=response.content[:500],
-            gaps_identified=[],
-            next_action="Continue searching with more specific queries.",
-        )
-
-    return Command(
-        update={
-            "reflection_list": [entry],
-            "messages": [
-                ToolMessage(content=entry.next_action, tool_call_id=tool_call_id)
-            ],
-        }
-    )
 
 
 # ---------------------------------------------------------------------------
