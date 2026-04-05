@@ -36,7 +36,7 @@ class TestLegislationFinderAgent:
         assert legislation_finder_agent is not None
         assert hasattr(legislation_finder_agent, "invoke")
 
-    @patch("agents.legislation_finder.web_search.invoke")
+    @patch("utils.tools.web_search.web_search.invoke")
     def test_web_search_finds_relevant_sources(
         self, mock_search: MagicMock, sample_legislation_sources: list[dict]
     ):
@@ -54,7 +54,7 @@ class TestLegislationFinderAgent:
             }
         }
 
-        from agents.legislation_finder import web_search
+        from utils.tools import web_search
 
         result = web_search.invoke(f"{self.city} city council legislation 2024")
 
@@ -196,10 +196,10 @@ class TestLegislationFinderEdgeCases:
 
     def test_no_legislation_found(self):
         """Test handling when no legislation is found."""
-        with patch("agents.legislation_finder.web_search.invoke") as mock_search:
+        with patch("utils.tools.web_search.web_search.invoke") as mock_search:
             mock_search.return_value = {"web": {"results": []}}
 
-            from agents.legislation_finder import web_search
+            from utils.tools import web_search
 
             result = web_search.invoke("nonexistent city xyz123 legislation")
             assert result["web"]["results"] == []
