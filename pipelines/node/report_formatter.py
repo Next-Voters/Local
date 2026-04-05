@@ -12,7 +12,6 @@ def _safe_text(value: object, fallback: str) -> str:
 
 def report_formatter(inputs: ChainData) -> ChainData:
     legislation_summary = inputs.get("legislation_summary")
-    public_statements = inputs.get("politician_public_statements") or []
 
     if legislation_summary is None:
         return {
@@ -35,51 +34,7 @@ def report_formatter(inputs: ChainData) -> ChainData:
         "",
         body,
         "",
-        "---",
-        "",
-        "## Politician Public Statements",
-        "",
     ]
-
-    if not isinstance(public_statements, list) or not public_statements:
-        lines.append("### Coming Soon!")
-        lines.append("")
-
-    for statement in public_statements:
-        if not isinstance(statement, dict):
-            continue
-
-        politician_name = _safe_text(
-            statement.get("politician") or statement.get("name"), "Unknown Politician"
-        )
-        source_link = _safe_text(
-            statement.get("source_url") or statement.get("source"), "N/A"
-        )
-        commentary = _safe_text(
-            statement.get("comment") or statement.get("summary"),
-            "No statement summary available.",
-        )
-
-        lines.append(f"### {politician_name}")
-        lines.append("")
-        lines.append(f"**Source:** {source_link}")
-        lines.append("")
-        lines.append(commentary)
-        lines.append("")
-
-        statement_summaries = statement.get("statement_summaries")
-        if not isinstance(statement_summaries, list):
-            continue
-
-        for item in statement_summaries:
-            if not isinstance(item, dict):
-                continue
-            lines.append(
-                f"**Legislation Source Link:** {_safe_text(item.get('source'), 'N/A')}"
-            )
-            lines.append("")
-            lines.append(_safe_text(item.get("summary"), "No summary available."))
-            lines.append("")
 
     markdown_report = "\n".join(lines)
 

@@ -63,7 +63,7 @@ The pipeline is a **fixed, deterministic sequence** of nodes composed via LangGr
 
 ```
 legislation_finder → content_retrieval → note_taker → summary_writer
-  → politician_commentary → report_formatter
+  → report_formatter
 ```
 
 Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline batch operation in the container runner after all (city, topic) pipelines complete. Reports are cached via `report_cache`, optionally translated to Spanish/French via DeepL SDK, then dispatched to subscribers in their preferred language filtered by their topic preferences.
@@ -74,15 +74,13 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 
 **Agents** (`agents/`):
 - `base_agent_template.py`: Shared ReAct agent template with reflection context management
-- `legislation_finder.py`: Discovers legislation sources via web search + reliability filtering
-- `political_commentary_finder.py`: Finds elected officials and their public statements
+- `legislation_finder.py`: Discovers legislation sources via web search
 
 **Pipeline Nodes** (`pipelines/node/`):
-- `legislation_finder.py`: Calls the ReAct agent, returns filtered URLs
+- `legislation_finder.py`: Calls the ReAct agent, returns URLs
 - `content_retrieval.py`: Fetches page content via Tavily Extract (with `markdown.new` fallback)
 - `note_taker.py`: Compresses raw content into dense notes (single LLM call)
 - `summary_writer.py`: Structured extraction of key legislative details (schema: `WriterOutput`)
-- `politician_commentary.py`: Calls ReAct agent for political context; passes `topic` and `research_notes` for focused research; forwards `social_media_posts` through pipeline state
 - `report_formatter.py`: Builds final markdown document
 - `email_dispatcher.py`: Post-pipeline batch email delivery — queries subscribers' topic and language preferences, builds per-subscriber content from matching topics in their preferred language (English/Spanish/French), sends in waves of 100 with rate limiting
 - `email_sender.py`: Legacy per-pipeline email node (uses shared `SMTPConnectionPool` from `utils/email.py`)
@@ -90,9 +88,9 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 **Utilities** (`utils/`):
 - `llm/`: LLM factory (`get_llm()`, `get_structured_llm()`) with default config (gpt-5, temp=0, max_tokens=16384)
 - `schemas/`:
-  - `state.py`: `ChainData` TypedDict (pipeline state contract); includes `social_media_posts` field for Twitter/X posts collected by the political commentary agent. Also defines `SocialMediaPost` TypedDict (politician, platform, text, tweet_id, created_at, engagement).
+  - `state.py`: `ChainData` TypedDict (pipeline state contract)
   - `pydantic.py`: Structured output schemas (e.g., `WriterOutput`)
-- `mcp/`: Per-service MCP (Model Context Protocol) client + server pairs for Tavily search/extraction, Wikidata reliability analysis, and political figure discovery. Each service lives in its own subdirectory (`tavily/`, `wikidata/`, `political_figures/`) with a `client.py` and `server.py`. Agents call `client.py` functions; `server.py` runs as a FastMCP subprocess via stdio transport. `session.py` provides `MCPSessionManager` for reusing subprocesses across tool calls within one agent invocation (avoids spawning a new process per tool call). Note: DeepL translation was moved out of MCP into a direct SDK call (`utils/report_translator.py`).
+- `mcp/`: Per-service MCP (Model Context Protocol) client + server pairs for Tavily search/extraction. Each service lives in its own subdirectory (`tavily/`) with a `client.py` and `server.py`. Agents call `client.py` functions; `server.py` runs as a FastMCP subprocess via stdio transport. `session.py` provides `MCPSessionManager` for reusing subprocesses across tool calls within one agent invocation (avoids spawning a new process per tool call). Note: DeepL translation was moved out of MCP into a direct SDK call (`utils/report_translator.py`).
 - `report_cache.py`: Module-level in-memory cache for city+topic pipeline reports and their translations. Reports are stored via `store(city, topic, report)` keyed as `{city: {topic: report}}`. Translations are stored in a parallel `_translations` dict via `store_translation(city, topic, lang, report)` or `store_all_translations(translations)`, keyed as `{city: {topic: {lang: report}}}`. Retrieve translations via `get_translation(city, topic, lang)` or `get_all_translations()`. The module itself acts as a singleton — import `from utils import report_cache` from anywhere.
 - `email.py`: Consolidated email utilities — `SMTPConnectionPool` (thread-safe, context manager, NOOP health checks for stale connections), `is_email_configured()`, `load_template()`, `convert_markdown_to_html()`, `render_template()`, `create_mime_message()`, `send_single_email()`. Single source of truth for all SMTP and email rendering logic.
 - `report_translator.py`: Translates all cached pipeline reports to Spanish (ES) and French (FR) synchronously via the DeepL SDK (`deepl` Python package). Uses direct `deepl.Translator` calls (no MCP layer). Exports `LANG_MAP` dict mapping language names to codes (e.g. `{"Spanish": "ES", "French": "FR"}`). Optional — gracefully skipped if `DEEPL_API_KEY` is not set.
@@ -104,18 +102,17 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 
 **Configuration** (`config/`):
 - `system_prompts/`: Prompt templates for agents and nodes
-- `search_profiles/`: Tavily search profile YAML files (`legislation.yaml`, `political.yaml`) that control domain allow-lists, date windows, and query structure (city-specific query refinement)
+- `search_profiles/`: Tavily search profile YAML files (`legislation.yaml`) that control domain allow-lists, date windows, and query structure (city-specific query refinement)
 - `constants.py`: Pipeline-wide tuneable constants: `COMPRESSION_RATE`, `MIN_CHARS_TO_COMPRESS`, `MAX_AGENT_MESSAGES`, `MAX_REFLECTION_ENTRIES`, `AGENT_RECURSION_LIMIT`
 
 ### Data Flow Example
 
-1. **Legislation Finder**: Agent uses Tavily search (via MCP) + Wikidata reliability check (via MCP) → outputs list of vetted URLs
+1. **Legislation Finder**: Agent uses Tavily search (via MCP) with prompt-based source filtering → outputs list of URLs
 2. **Content Retrieval**: Fetches each URL's text via Tavily Extract (with `markdown.new` as fallback); each block is then compressed by LLMLingua-2 before being stored → list of compressed text blocks
 3. **Note Taker**: LLM summarizes all blocks into dense notes
 4. **Summary Writer**: LLM extracts structured data (title, category, impact, etc.) → `WriterOutput`
-5. **Politician Commentary**: Agent discovers officials via Political Figures MCP, searches statements via Tavily MCP, and searches Twitter via tweepy → politician public statements + social media posts (forwarded via `social_media_posts` in pipeline state). Receives `topic` and `research_notes` from upstream for focused research.
-6. **Report Formatter**: Combines all outputs into markdown for display/email
-7. **Post-pipeline** (container runner only): Reports are translated to Spanish and French via the DeepL SDK, stored in the report cache translations layer, then dispatched to each subscriber in their preferred language (from `subscriptions.preferred_language`) filtered by their topic preferences
+5. **Report Formatter**: Combines all outputs into markdown for display/email
+6. **Post-pipeline** (container runner only): Reports are translated to Spanish and French via the DeepL SDK, stored in the report cache translations layer, then dispatched to each subscriber in their preferred language (from `subscriptions.preferred_language`) filtered by their topic preferences
 
 ### Key Design Decisions
 
@@ -124,12 +121,11 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 - Changes to pipeline structure happen at `pipelines/nv_local.py:chain`
 
 **ReAct agents only for tool-use**
-- Legislation and political commentary discovery use ReAct (multi-turn reasoning with tools)
+- Legislation discovery uses ReAct (multi-turn reasoning with tools)
 - Note-taking and summary-writing are single-shot LLM transforms (simpler, cheaper)
 
-**Reliability gate before content fetching**
-- URLs are validated using Wikidata (via MCP) + structured LLM output (`SourceReliabilityJudgment`) before fetching
-- Pydantic-enforced structured output replaced the earlier manual JSON parsing that could silently produce wrong results; now a parse failure raises rather than silently passing bad data
+**Source filtering in agent prompt**
+- Source filtering is handled by the legislation finder agent's system prompt, which includes a classification table for accepting/rejecting sources based on type (government sites, legislative databases, factual news vs. opinion, blogs, aggregators)
 
 **Content extraction via Tavily Extract (not markdown.new)**
 - `content_retrieval.py` uses the Tavily Extract SDK as its primary extraction method; `markdown.new` remains as a fallback for domains Tavily cannot reach
@@ -144,13 +140,13 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 
 **MCP server architecture for all external tools**
 - All agent tools are thin inline adapters that call FastMCP servers via stdio transport — no custom HTTP clients or manual JSON handling
-- Each service (`tavily/`, `wikidata/`, `political_figures/`) has a `server.py` that owns the business logic and a `client.py` that manages the session lifecycle
+- Each service (`tavily/`) has a `server.py` that owns the business logic and a `client.py` that manages the session lifecycle
 - The earlier `tools/` directory (shared tool functions passed to agents) was eliminated; tool adapters now live directly in each agent file
 - `MCPSessionManager` (in `utils/mcp/session.py`) pre-initializes one subprocess per agent invocation and reuses it across all tool calls, preventing the process-per-call overhead that was producing process termination warnings
 
 **Rate limiting: bounded agent iterations**
 - Pipeline nodes pass `AGENT_RECURSION_LIMIT=25` (from `config/constants.py`) at `ainvoke()` time via the `config` dict, preventing unbounded tool call loops that caused 429 Too Many Requests errors in multi-city runs
-- System prompts for both agents include explicit "Exit Criteria" sections with measurable stopping conditions; `search_political_commentary` defaults to `max_results=3` (was 5)
+- System prompts include explicit "Exit Criteria" sections with measurable stopping conditions
 - Together these reduce LLM request volume ~40% while maintaining research quality
 
 **In-memory report cache (`utils/report_cache.py`)**
@@ -203,16 +199,12 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 - `TAVILY_API_KEY`: Tavily Search + Extract (web search and content retrieval via MCP)
 
 **Optional**:
-- `TWITTER_BEARER_TOKEN`: Twitter/X search via tweepy SDK in Political Figures MCP server (bearer token only; v2 API does not use `TWITTER_API_KEY`)
 - `SUPABASE_URL`, `SUPABASE_KEY`: Load supported cities + email subscribers
 - `SMTP_EMAIL`, `SMTP_APP_PASSWORD`: Send reports via SMTP (defaults: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`)
 - `DEEPL_API_KEY`: DeepL API for translating reports to Spanish/French (free tier: 500K chars/month at https://www.deepl.com/pro-api)
 
 **External APIs** (no env needed, service-to-service):
-- Wikidata REST + SPARQL (source reliability checking via Wikidata MCP server)
 - OpenStreetMap Nominatim (country detection)
-- OpenNorth Represent (Canada) + WeVote API (USA) for political figures (via Political Figures MCP server)
-
 **Local models** (downloaded on first run, no API key):
 - `microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank` (HuggingFace Hub) — used by `utils/context_compressor.py` for content compression; cached after first download, runs on CPU
 

@@ -1,6 +1,6 @@
 """Pytest configuration and fixtures for NV Local evaluation suite.
 
-Provides mocks for external APIs (Wikidata, LLM calls, MCP servers)
+Provides mocks for external APIs (LLM calls, MCP servers)
 to enable isolated unit testing of components.
 """
 
@@ -154,63 +154,6 @@ def sample_writer_output() -> dict[str, Any]:
 
 
 @pytest.fixture
-def sample_politician_data() -> list[dict[str, Any]]:
-    """Sample political figure data."""
-    return [
-        {
-            "name": "Olivia Chow",
-            "position": "Mayor",
-            "party": None,
-            "jurisdiction": "Toronto",
-            "source_url": "https://www.toronto.ca/mayor/",
-        },
-        {
-            "name": "Josh Matlow",
-            "position": "City Councilor",
-            "party": "Independent",
-            "jurisdiction": "Toronto - Ward 12",
-            "source_url": "https://www.toronto.ca/council/josh-matlow/",
-        },
-        {
-            "name": "Gord Perks",
-            "position": "City Councilor",
-            "party": "New Democrat",
-            "jurisdiction": "Toronto - Ward 4",
-            "source_url": None,
-        },
-    ]
-
-
-@pytest.fixture
-def sample_political_statements() -> list[dict[str, Any]]:
-    """Sample political statements."""
-    return [
-        {
-            "name": "Olivia Chow",
-            "statement_summaries": [
-                {
-                    "source": "https://www.toronto.ca/mayor/news/",
-                    "summary": "Mayor Chow emphasized the climate legislation as a historic step, stating it represents Toronto's commitment to being a leader in municipal climate action.",
-                },
-                {
-                    "source": "https://twitter.com/OliviaChow",
-                    "summary": "On social media, the Mayor highlighted the housing strategy as addressing the core crisis facing Toronto families.",
-                },
-            ],
-        },
-        {
-            "name": "Josh Matlow",
-            "statement_summaries": [
-                {
-                    "source": "https://www.thestar.com/opinion/st -it-by-josh-matlow",
-                    "summary": "Councilor Matlow expressed conditional support for climate bill, noting need for more funding for retrofits in lower-income areas.",
-                },
-            ],
-        },
-    ]
-
-
-@pytest.fixture
 def sample_markdown_report() -> str:
     """Sample markdown report output."""
     return """# Toronto City Council Legislation Update - January 2024
@@ -228,51 +171,7 @@ City Council passed significant climate action and housing legislation including
 - **Transit Expansion**: TTC approved Ontario Line expansion plan with federal and provincial funding
 
 - Key themes: Housing affordability and climate sustainability dominate 2024 legislative agenda
-
----
-
-## Politician Public Statements
-### Coming Soon!
-
-### Olivia Chow
-
-**Legislation Source Link:** https://www.toronto.ca/mayor/news/
-
-Mayor Chow emphasized the climate legislation as a historic step, stating it represents Toronto's commitment to being a leader in municipal climate action.
-
-**Legislation Source Link:** https://twitter.com/OliviaChow
-
-On social media, the Mayor highlighted the housing strategy as addressing the core crisis facing Toronto families.
-
-### Josh Matlow
-
-**Legislation Source Link:** https://www.thestar.com/opinion/st -it-by-josh-matlow
-
-Councilor Matlow expressed conditional support for climate bill, noting need for more funding for retrofits in lower-income areas.
 """
-
-
-@pytest.fixture
-def mock_wikidata() -> MagicMock:
-    """Mock Wikidata API responses."""
-    mock = MagicMock()
-    mock.return_value = {
-        "results": [
-            {
-                "name": "Olivia Chow",
-                "position": "Mayor of Toronto",
-                "jurisdiction": "Toronto",
-                "type": "human",
-            },
-            {
-                "name": "Toronto City Council",
-                "position": "Legislative body",
-                "jurisdiction": "Toronto",
-                "type": "government organization",
-            },
-        ]
-    }
-    return mock
 
 
 @pytest.fixture
@@ -312,8 +211,7 @@ def mock_agent_state() -> dict[str, Any]:
         ],
         "reflection_list": [],
         "city": "Toronto",
-        "raw_legislation_sources": [],
-        "reliable_legislation_sources": [],
+        "legislation_sources": [],
     }
 
 
@@ -365,34 +263,3 @@ def mock_retrieval_context() -> str:
     """
 
 
-class MockWikidataTool:
-    """Mock Wikidata tool for testing."""
-
-    def __init__(self, entities: Optional[list[dict]] = None):
-        self.entities = entities or [
-            {"name": "Test Politician", "jurisdiction": "Test City"}
-        ]
-
-    def invoke(self, query: str) -> dict:
-        return {"results": self.entities}
-
-
-@pytest.fixture
-def patch_wikidata(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Patch Wikidata API for all tests."""
-
-    def mock_find(query: str) -> dict:
-        return {
-            "results": [
-                {
-                    "name": query,
-                    "jurisdiction": "Test City",
-                    "position": "Test Position",
-                }
-            ]
-        }
-
-    monkeypatch.setattr(
-        "agents.political_commentary_finder.political_figure_finder.invoke",
-        mock_find,
-    )

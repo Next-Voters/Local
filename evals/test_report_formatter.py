@@ -1,7 +1,7 @@
 """Unit tests for ReportFormatter component.
 
 Tests the formatter's ability to create well-structured
-markdown reports from summaries and political statements.
+markdown reports from legislation summaries.
 """
 
 from __future__ import annotations
@@ -26,13 +26,8 @@ class TestReportFormatter:
     """Test suite for ReportFormatter component."""
 
     @pytest.fixture(autouse=True)
-    def setup(
-        self,
-        sample_writer_output: dict[str, Any],
-        sample_political_statements: list[dict],
-    ):
+    def setup(self, sample_writer_output: dict[str, Any]):
         self.summary = sample_writer_output
-        self.statements = sample_political_statements
 
     def test_formatter_initialization(self):
         """Test that formatter can be imported."""
@@ -41,9 +36,7 @@ class TestReportFormatter:
         assert report_formatter_chain is not None
 
     def test_report_formatter_with_valid_input(
-        self,
-        sample_writer_output: dict[str, Any],
-        sample_political_statements: list[dict],
+        self, sample_writer_output: dict[str, Any]
     ):
         """Test report formatter with valid inputs."""
         from pipelines.node.report_formatter import report_formatter
@@ -54,7 +47,6 @@ class TestReportFormatter:
                 summary=sample_writer_output["summary"],
                 body=sample_writer_output["body"],
             ),
-            "politician_public_statements": sample_political_statements,
         }
 
         result = report_formatter(inputs)
@@ -69,7 +61,6 @@ class TestReportFormatter:
 
         inputs: ChainData = {
             "legislation_summary": None,
-            "politician_public_statements": [],
         }
 
         result = report_formatter(inputs)
@@ -77,29 +68,7 @@ class TestReportFormatter:
         assert "markdown_report" in result
         assert "No Legislation Found" in result["markdown_report"]
 
-    def test_report_formatter_without_politicians(
-        self, sample_writer_output: dict[str, Any]
-    ):
-        """Test report formatter handles missing political statements."""
-        from pipelines.node.report_formatter import report_formatter
-
-        inputs: ChainData = {
-            "legislation_summary": WriterOutput(
-                title=sample_writer_output["title"],
-                summary=sample_writer_output["summary"],
-                body=sample_writer_output["body"],
-            ),
-            "politician_public_statements": [],
-        }
-
-        result = report_formatter(inputs)
-
-        assert "markdown_report" in result
-        assert "# " in result["markdown_report"]
-
-    def test_report_includes_required_sections(
-        self, sample_writer_output: dict[str, Any]
-    ):
+    def test_report_includes_required_sections(self):
         """Test that report includes all required sections."""
         from pipelines.node.report_formatter import report_formatter
 
@@ -109,14 +78,6 @@ class TestReportFormatter:
                 summary="Test summary",
                 body="Test body content",
             ),
-            "politician_public_statements": [
-                {
-                    "name": "Test Politician",
-                    "statement_summaries": [
-                        {"source": "https://example.com", "summary": "Test statement"}
-                    ],
-                }
-            ],
         }
 
         result = report_formatter(inputs)
@@ -125,8 +86,6 @@ class TestReportFormatter:
         assert "# Test Title" in report
         assert "## Summary" in report
         assert "## Full Report" in report
-        assert "## Politician" in report
-        assert "### Test Politician" in report
 
 
 class TestReportFormattingMetric:
@@ -148,16 +107,7 @@ City Council passed major climate and housing legislation in January 2024.
 ## Full Report
 - **Bill 1-2024**: Climate Action Initiative
 - **Bill 2-2024**: Affordable Housing Strategy
-
----
-
-## Politician Public Statements
-### Coming Soon!
-
-### Mayor Olivia Chow
-**Source:** https://example.com/statement
-
-Statement about the legislation here.""",
+""",
         )
 
         self.metric.measure(test_case)
@@ -200,7 +150,6 @@ class TestSectionPresenceMetric:
                 "# Title",
                 "## Summary",
                 "## Full Report",
-                "## Politician",
             ]
         )
 
@@ -213,9 +162,7 @@ Summary content here.
 
 ## Full Report
 Report content here.
-
-## Politician Statements
-Politician content here.""",
+""",
         )
 
         metric.measure(test_case)
@@ -246,7 +193,6 @@ Missing Full Report section.""",
             required_sections=[
                 "# Executive Summary",
                 "## Legislation",
-                "## Politicians",
             ]
         )
 
@@ -256,9 +202,6 @@ Missing Full Report section.""",
 Content
 
 ## Legislation
-Content
-
-## Politicians
 Content""",
         )
 
@@ -318,11 +261,7 @@ class TestMarkdownSyntaxMetric:
 class TestReportFormatterIntegration:
     """Integration tests for report formatter."""
 
-    def test_full_report_generation(
-        self,
-        sample_writer_output: dict[str, Any],
-        sample_political_statements: list[dict],
-    ):
+    def test_full_report_generation(self, sample_writer_output: dict[str, Any]):
         """Test complete report generation workflow."""
         from pipelines.node.report_formatter import report_formatter
 
@@ -332,7 +271,6 @@ class TestReportFormatterIntegration:
                 summary=sample_writer_output["summary"],
                 body=sample_writer_output["body"],
             ),
-            "politician_public_statements": sample_political_statements,
         }
 
         result = report_formatter(inputs)
@@ -341,81 +279,6 @@ class TestReportFormatterIntegration:
         assert isinstance(report, str)
         assert len(report) > 100
         assert report.startswith("#")
-
-    def test_report_with_multiple_politicians(
-        self, sample_writer_output: dict[str, Any]
-    ):
-        """Test report with multiple politician entries."""
-        from pipelines.node.report_formatter import report_formatter
-
-        inputs: ChainData = {
-            "legislation_summary": WriterOutput(
-                title="Test",
-                summary="Summary",
-                body="Body",
-            ),
-            "politician_public_statements": [
-                {
-                    "name": "Politician 1",
-                    "statement_summaries": [
-                        {"source": "https://a.com", "summary": "Statement 1"}
-                    ],
-                },
-                {
-                    "name": "Politician 2",
-                    "statement_summaries": [
-                        {"source": "https://b.com", "summary": "Statement 2"}
-                    ],
-                },
-                {
-                    "name": "Politician 3",
-                    "statement_summaries": [
-                        {"source": "https://c.com", "summary": "Statement 3"}
-                    ],
-                },
-            ],
-        }
-
-        result = report_formatter(inputs)
-        report = result["markdown_report"]
-
-        assert "### Politician 1" in report
-        assert "### Politician 2" in report
-        assert "### Politician 3" in report
-
-    def test_report_with_multiple_statements(
-        self, sample_writer_output: dict[str, Any]
-    ):
-        """Test report with multiple statements per politician."""
-        from pipelines.node.report_formatter import report_formatter
-
-        inputs: ChainData = {
-            "legislation_summary": WriterOutput(
-                title="Test",
-                summary="Summary",
-                body="Body",
-            ),
-            "politician_public_statements": [
-                {
-                    "name": "Test Politician",
-                    "statement_summaries": [
-                        {"source": "https://source1.com", "summary": "First statement"},
-                        {
-                            "source": "https://source2.com",
-                            "summary": "Second statement",
-                        },
-                        {"source": "https://source3.com", "summary": "Third statement"},
-                    ],
-                }
-            ],
-        }
-
-        result = report_formatter(inputs)
-        report = result["markdown_report"]
-
-        assert report.count("source1.com") == 1
-        assert report.count("source2.com") == 1
-        assert report.count("source3.com") == 1
 
 
 class TestReportFormatterEdgeCases:
@@ -431,7 +294,6 @@ class TestReportFormatterEdgeCases:
                 summary="Summary",
                 body="Body",
             ),
-            "politician_public_statements": [],
         }
 
         result = report_formatter(inputs)
@@ -449,7 +311,6 @@ class TestReportFormatterEdgeCases:
                 summary="A very long summary " * 100,
                 body=long_body,
             ),
-            "politician_public_statements": [],
         }
 
         result = report_formatter(inputs)
@@ -462,10 +323,9 @@ class TestReportFormatterEdgeCases:
         inputs: ChainData = {
             "legislation_summary": WriterOutput(
                 title="Test: Special Chars & More (#1)",
-                summary="Summary with émojis 🎉",
+                summary="Summary with special chars",
                 body="- Point with **bold** and *italic*",
             ),
-            "politician_public_statements": [],
         }
 
         result = report_formatter(inputs)
@@ -492,21 +352,7 @@ City Council passed significant climate action and housing legislation including
 - **Climate Action Initiative (Bill 1)**: Passed 38-7, establishes 65% GHG reduction target by 2030, mandates building retrofits, $50M renewable energy investment
 
 - **Affordable Housing Strategy (Bill 2)**: Passed 42-3, requires 20% affordable units in large developments, establishes $100M housing trust, implements income-based rent control
-
----
-
-## Politician Public Statements
-### Coming Soon!
-
-### Olivia Chow
-**Legislation Source Link:** https://www.toronto.ca/mayor/news/
-
-Mayor Chow emphasized the climate legislation as a historic step.
-
-### Josh Matlow
-**Legislation Source Link:** https://www.thestar.com/opinion/
-
-Councilor Matlow expressed conditional support for the climate bill.""",
+""",
         ),
         LLMTestCase(
             input="Generate report",

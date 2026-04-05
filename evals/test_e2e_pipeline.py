@@ -16,7 +16,6 @@ from deepeval.test_case import LLMTestCase
 from evals.metrics import (
     LegislationAccuracyMetric,
     SummaryQualityMetric,
-    PoliticalRelevanceMetric,
     ReportFormattingMetric,
     NoHallucinationMetric,
 )
@@ -157,24 +156,6 @@ class TestPipelineComponents:
 
         assert "legislation_summary" in result
 
-    @patch("pipelines.node.politician_commentary.politician_commentary_chain.invoke")
-    def test_politician_commentary_chain(
-        self, mock_invoke: MagicMock, sample_political_statements: list[dict]
-    ):
-        """Test politician commentary chain integration."""
-        mock_invoke.return_value = {
-            "city": "Toronto",
-            "politician_public_statements": sample_political_statements,
-        }
-
-        from pipelines.node.politician_commentary import (
-            politician_commentary_chain,
-        )
-
-        result = politician_commentary_chain.invoke({"city": "Toronto"})
-
-        assert "politician_public_statements" in result
-
     @patch("pipelines.node.report_formatter.report_formatter_chain.invoke")
     def test_report_formatter_chain(
         self, mock_invoke: MagicMock, sample_markdown_report: str
@@ -193,7 +174,6 @@ class TestPipelineComponents:
                 "legislation_summary": WriterOutput(
                     title="Test", summary="Test", body="Test"
                 ),
-                "politician_public_statements": [],
             }
         )
 
@@ -235,28 +215,18 @@ class TestPipelineOutput:
         assert "## " in sample_markdown_report
         assert sample_markdown_report.count("#") >= 2
 
-    def test_report_contains_politician_section(self, sample_markdown_report: str):
-        """Test that report contains politician statements section."""
-        assert "Politician" in sample_markdown_report
-        assert (
-            "Coming Soon" in sample_markdown_report or "###" in sample_markdown_report
-        )
-
 
 class TestPipelineIntegration:
     """Full integration tests for pipeline."""
 
-    @patch("agents.political_commentary_finder.political_commentary_agent.invoke")
     @patch("pipelines.node.summary_writer._get_model")
     @patch("agents.legislation_finder.web_search.invoke")
     def test_full_pipeline_with_mocks(
         self,
         mock_search: MagicMock,
         mock_model: MagicMock,
-        mock_political: MagicMock,
         sample_legislation_sources: list[dict],
         sample_writer_output: dict[str, Any],
-        sample_political_statements: list[dict],
     ):
         """Test complete pipeline with all mocks."""
         from utils.schemas import WriterOutput
@@ -269,10 +239,6 @@ class TestPipelineIntegration:
             summary=sample_writer_output["summary"],
             body=sample_writer_output["body"],
         )
-        mock_political.return_value = {
-            "political_commentary": [],
-            "political_figures": [],
-        }
 
         from pipelines.nv_local import run_pipeline
 
@@ -389,20 +355,13 @@ City Council passed significant climate action and housing legislation including
 ## Full Report
 - **Climate Action Initiative (Bill 1)**: Passed 38-7, establishes 65% GHG reduction target by 2030
 - **Affordable Housing Strategy (Bill 2)**: Passed 42-3, requires 20% affordable units
-
----
-
-## Politician Public Statements
-### Coming Soon!
-
-### Olivia Chow
-Mayor Chow emphasized the climate legislation as a historic step.""",
+""",
             retrieval_context="""
             Source: Toronto City Council
             Bill 1-2024: Climate Action Initiative
             - 65% GHG reduction by 2030
             - Passed 38-7
-            
+
             Bill 2-2024: Affordable Housing Strategy
             - 20% affordable units
             - Passed 42-3
@@ -418,9 +377,7 @@ City Council passed Green New Deal legislation.
 ## Full Report
 - Intro 1234: Climate legislation passed
 - Housing preservation laws updated
-
-## Politician Statements
-### Coming Soon!""",
+""",
             retrieval_context="""
             Source: NYC City Council
             Intro 1234: Green New Deal for NYC
@@ -432,7 +389,6 @@ City Council passed Green New Deal legislation.
     metrics = [
         LegislationAccuracyMetric,
         SummaryQualityMetric,
-        PoliticalRelevanceMetric,
         ReportFormattingMetric,
         NoHallucinationMetric,
     ]
