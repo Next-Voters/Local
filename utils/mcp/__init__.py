@@ -1,36 +1,15 @@
 """MCP client utilities for connecting to external services.
 
-Each subdirectory is a self-contained MCP service:
-  - tavily/: Tavily search + extract (FastMCP server as local subprocess)
-  - google_calendar/: Google Calendar via @cocal/google-calendar-mcp (npx subprocess)
+Primary interface: ``utils.mcp.registry`` — import as ``from utils.mcp import registry as mcp``.
+
+Internal modules:
+  - registry.py: Declarative server registry (session management, tool dispatch)
+  - session.py: MCPSessionManager (ContextVar-based session reuse)
+  - _shared.py: parse_mcp_result helper
+  - tavily/server.py: FastMCP server (runs as subprocess, not imported directly)
+  - tavily/extract.py: Tavily SDK content extraction (direct API call, not MCP)
 """
 
-from utils.mcp.tavily import (
-    get_api_key,
-    get_tavily_session,
-    search_legislation,
-    search_political_content,
-    extract_search_results,
-    extract_url_content,
-)
-from utils.mcp.google_calendar import (
-    get_google_calendar_session,
-    managed_google_calendar_session,
-    create_event,
-    is_calendar_configured,
-)
+from utils.mcp import registry  # noqa: F401 — ensure registrations run at import time
 
-__all__ = [
-    # Tavily
-    "get_api_key",
-    "get_tavily_session",
-    "search_legislation",
-    "search_political_content",
-    "extract_search_results",
-    "extract_url_content",
-    # Google Calendar
-    "get_google_calendar_session",
-    "managed_google_calendar_session",
-    "create_event",
-    "is_calendar_configured",
-]
+__all__ = ["registry"]

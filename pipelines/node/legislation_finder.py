@@ -7,8 +7,7 @@ from langchain_core.runnables import RunnableLambda
 from config.constants import AGENT_RECURSION_LIMIT
 from utils.schemas import ChainData
 from utils.async_runner import run_async
-from utils.mcp.tavily.client import managed_tavily_session
-from utils.mcp.google_calendar.client import managed_google_calendar_session, is_calendar_configured
+from utils.mcp import registry as mcp
 from utils.source_reliability import filter_sources
 
 logger = logging.getLogger(__name__)
@@ -18,9 +17,9 @@ async def _invoke_legislation_finder(city: str) -> dict:
     """Invoke the legislation finder agent with an initial task message."""
     from agents.legislation_finder import legislation_finder_agent
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(managed_tavily_session())
-        if is_calendar_configured():
-            await stack.enter_async_context(managed_google_calendar_session())
+        await stack.enter_async_context(mcp.session("tavily"))
+        if mcp.is_configured("google_calendar"):
+            await stack.enter_async_context(mcp.session("google_calendar"))
         return await legislation_finder_agent.ainvoke(
             {
                 "city": city,

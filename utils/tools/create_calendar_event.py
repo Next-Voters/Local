@@ -8,15 +8,15 @@ agent state so it flows through to the pipeline and report.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
-from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
-from utils.mcp.google_calendar import create_event, is_calendar_configured
+from utils.mcp import registry as mcp
 from utils.schemas import LegislativeEvent
+from utils.tools._helpers import ok
 
 logger = logging.getLogger(__name__)
 
@@ -69,31 +69,30 @@ async def create_calendar_event(
         source_url=source_url,
     )
 
-    if not is_calendar_configured():
+    if not mcp.is_configured("google_calendar"):
         msg = (
             f"Event recorded (Google Calendar not configured): "
             f"'{title}' on {start_date}"
         )
         logger.info(msg)
-        return Command(
-            update={
-                "legislative_events": [event],
-                "messages": [ToolMessage(content=msg, tool_call_id=tool_call_id)],
-            }
-        )
+        return ok(tool_call_id, msg, legislative_events=[event])
 
     try:
         full_description = description or ""
         if source_url:
             full_description += f"\n\nSource: {source_url}"
 
-        result = await create_event(
-            summary=f"[{city}] {title}",
-            start_time=start_date,
-            end_time=resolved_end,
-            description=full_description or None,
-            location=location,
-        )
+        args: dict[str, Any] = {
+            "summary": f"[{city}] {title}",
+            "start": {"dateTime": start_date},
+            "end": {"dateTime": resolved_end},
+        }
+        if full_description:
+            args["description"] = full_description
+        if location:
+            args["location"] = location
+
+        result = await mcp.call("google_calendar", "create-event", args)
         link = result.get("htmlLink") or result.get("id", "no link")
         msg = f"Calendar event created: '{title}' on {start_date} — {link}"
         logger.info(msg)
@@ -102,9 +101,4 @@ async def create_calendar_event(
         msg = f"Calendar event creation failed: {e}. Event recorded in state."
         logger.warning(msg)
 
-    return Command(
-        update={
-            "legislative_events": [event],
-            "messages": [ToolMessage(content=msg, tool_call_id=tool_call_id)],
-        }
-    )
+    return ok(tool_call_id, msg, legislative_events=[event])

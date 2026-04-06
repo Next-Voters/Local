@@ -1,22 +1,9 @@
-"""Tavily MCP service — web search (legislation, political content) and URL extraction.
+"""Tavily MCP service — search (via MCP server) and content extraction (via SDK).
 
-Import from here (or from client.py) for app code. server.py runs as a stdio subprocess.
+server.py: FastMCP server registered in utils.mcp.registry (runs as subprocess)
+extract.py: Tavily SDK URL content extraction (direct API call, not MCP)
 """
 
-from utils.mcp.tavily.client import (
-    extract_search_results,
-    extract_url_content,
-    get_api_key,
-    get_tavily_session,
-    search_legislation,
-    search_political_content,
-)
+from utils.mcp.tavily.extract import extract_url_content
 
-__all__ = [
-    "get_api_key",
-    "get_tavily_session",
-    "search_legislation",
-    "search_political_content",
-    "extract_search_results",
-    "extract_url_content",
-]
+__all__ = ["extract_url_content"]

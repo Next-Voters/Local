@@ -1,19 +1,5 @@
-"""Google Calendar MCP service — create events for legislative dates.
+"""Google Calendar MCP service — event creation via @cocal/google-calendar-mcp.
 
-Import from here (or from client.py) for app code.
-Uses @cocal/google-calendar-mcp (npm) as a stdio subprocess via npx.
+Server is an npm package registered in utils.mcp.registry.
+No Python client code in this directory.
 """
-
-from utils.mcp.google_calendar.client import (
-    get_google_calendar_session,
-    managed_google_calendar_session,
-    create_event,
-    is_calendar_configured,
-)
-
-__all__ = [
-    "get_google_calendar_session",
-    "managed_google_calendar_session",
-    "create_event",
-    "is_calendar_configured",
-]

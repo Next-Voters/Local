@@ -8,13 +8,14 @@ import json
 from functools import lru_cache
 from typing import Annotated
 
-from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.messages import BaseMessage
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from utils.schemas import ReflectionEntry
 from utils.llm import get_mini_llm
+from utils.tools._helpers import ok
 from config.system_prompts import reflection_prompt
 
 
@@ -49,7 +50,6 @@ def reflection_tool(
         ]
     )
 
-    # Parse the structured reflection
     try:
         reflection_data = json.loads(response.content)
         entry = ReflectionEntry(
@@ -66,11 +66,4 @@ def reflection_tool(
             next_action="Continue searching with more specific queries.",
         )
 
-    return Command(
-        update={
-            "reflection_list": [entry],
-            "messages": [
-                ToolMessage(content=entry.next_action, tool_call_id=tool_call_id)
-            ],
-        }
-    )
+    return ok(tool_call_id, entry.next_action, reflection_list=[entry])

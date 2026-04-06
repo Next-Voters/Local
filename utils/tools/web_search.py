@@ -7,18 +7,42 @@ pymupdf4llm so it is available immediately in pipeline state.
 """
 
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
-from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from utils.context_compressor import compress_text
-from utils.mcp.tavily import search_legislation, extract_search_results
+from utils.mcp import registry as mcp
 from utils.pdf_extractor import is_pdf_url, download_and_parse_pdf
+from utils.tools._helpers import ok, err
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_search_results(raw_results: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract title/url/description/score from Tavily results.
+
+    Results are returned in the order Tavily provides them —
+    typically sorted by relevance score descending.
+    """
+    results: list[dict[str, Any]] = []
+    if isinstance(raw_results, dict):
+        tavily_results = raw_results.get("results", [])
+        if isinstance(tavily_results, list):
+            for result in tavily_results:
+                if not isinstance(result, dict):
+                    continue
+                results.append(
+                    {
+                        "title": str(result.get("title") or "Untitled"),
+                        "url": str(result.get("url") or ""),
+                        "description": str(result.get("content") or ""),
+                        "score": float(result.get("score", 0.0)),
+                    }
+                )
+    return results
 
 
 @tool
@@ -48,13 +72,13 @@ async def web_search(
         A Command object that updates the state with search results.
     """
     try:
-        raw_results = await search_legislation(
-            query=query,
-            city=city,
-            max_results=max_results,
+        raw_results = await mcp.call(
+            "tavily",
+            "search_legislation",
+            {"query": query, "city": city, "max_results": max_results},
         )
 
-        results = extract_search_results(raw_results)
+        results = _extract_search_results(raw_results)
 
         legislation_sources: list[str | dict] = []
         pdf_count = 0
@@ -81,7 +105,6 @@ async def web_search(
 
             legislation_sources.append(url)
 
-        # Build a human-readable summary for the agent's message history.
         summary_lines = []
         for source in legislation_sources:
             if isinstance(source, dict):
@@ -96,29 +119,9 @@ async def web_search(
             + "\n".join(summary_lines)
         )
 
-        return Command(
-            update={
-                "legislation_sources": legislation_sources,
-                "messages": [
-                    ToolMessage(
-                        content=summary,
-                        tool_call_id=tool_call_id,
-                    )
-                ],
-            }
-        )
+        return ok(tool_call_id, summary, legislation_sources=legislation_sources)
 
     except ValueError as e:
-        error_msg = f"Tavily API key not configured: {e}"
-        return Command(
-            update={
-                "messages": [ToolMessage(content=error_msg, tool_call_id=tool_call_id)],
-            }
-        )
+        return err(tool_call_id, f"Tavily API key not configured: {e}")
     except Exception as e:
-        error_msg = f"Web search failed: {e}"
-        return Command(
-            update={
-                "messages": [ToolMessage(content=error_msg, tool_call_id=tool_call_id)],
-            }
-        )
+        return err(tool_call_id, f"Web search failed: {e}")
