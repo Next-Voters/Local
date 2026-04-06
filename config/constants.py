@@ -29,3 +29,11 @@ MAX_REFLECTION_ENTRIES: int = 5
 # Maximum graph steps before LangGraph raises a recursion error.
 # Prevents unbounded tool-call loops in multi-city runs.
 AGENT_RECURSION_LIMIT: int = 25
+
+# ---------------------------------------------------------------------------
+# PDF extraction
+# ---------------------------------------------------------------------------
+
+# Skip downloading PDFs larger than this (bytes). Prevents the agent from
+# stalling on enormous legislative appendices or scanned image bundles.
+MAX_PDF_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
