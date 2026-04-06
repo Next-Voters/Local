@@ -35,20 +35,29 @@ def run_legislation_finder(inputs: ChainData) -> ChainData:
     city = inputs.get("city", "Unknown")
     agent_result = run_async(lambda: _invoke_legislation_finder(city))
 
-    # Extract URLs from sources collected by web_search tool calls.
-    all_urls = agent_result.get("legislation_sources", [])
-    # Deduplicate while preserving order
+    # Extract sources collected by web_search tool calls.
+    # Sources are either plain URL strings or dicts {"url", "content", "source"} for
+    # PDFs that were extracted inline by the web_search tool.
+    all_sources = agent_result.get("legislation_sources", [])
+    # Deduplicate while preserving order, keying on the URL regardless of type.
     seen: set[str] = set()
-    unique_urls: list[str] = []
-    for url in all_urls:
-        if url not in seen:
+    unique_sources: list[str | dict] = []
+    for source in all_sources:
+        url = source["url"] if isinstance(source, dict) else source
+        if url and url not in seen:
             seen.add(url)
-            unique_urls.append(url)
+            unique_sources.append(source)
 
     # Domain-level reliability filter (no API key, no external service).
-    logger.info("Source reliability check for %d unique URLs:", len(unique_urls))
-    accepted = filter_sources(unique_urls)
-    legislation_sources = [s["url"] for s in accepted]
+    plain_urls = [s["url"] if isinstance(s, dict) else s for s in unique_sources]
+    logger.info("Source reliability check for %d unique URLs:", len(plain_urls))
+    accepted_urls = {scored["url"] for scored in filter_sources(plain_urls)}
+
+    # Rebuild the source list preserving dict items (pre-fetched PDF content).
+    legislation_sources = [
+        s for s in unique_sources
+        if (s["url"] if isinstance(s, dict) else s) in accepted_urls
+    ]
 
     # Extract and deduplicate legislative events by (title, start_date).
     raw_events = agent_result.get("legislative_events", [])
@@ -62,7 +71,7 @@ def run_legislation_finder(inputs: ChainData) -> ChainData:
 
     logger.info(
         "Legislation finder for %s: %d accepted / %d unique, %d events",
-        city, len(legislation_sources), len(unique_urls), len(legislative_events),
+        city, len(legislation_sources), len(unique_sources), len(legislative_events),
     )
     return {**inputs, "legislation_sources": legislation_sources, "legislative_events": legislative_events}
 
