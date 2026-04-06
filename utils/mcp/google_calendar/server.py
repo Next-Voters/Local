@@ -4,12 +4,14 @@ This file is NOT imported by app code. It is launched by the registry as a
 subprocess. Provides FastMCP tools wrapping the Google Calendar API v3 for
 creating, listing, and deleting calendar events.
 
-Credentials are read from the file path in GOOGLE_OAUTH_CREDENTIALS env var.
-The file must be an OAuth2 authorized-user JSON (produced by google-auth-oauthlib).
+Credentials are read from the GOOGLE_SERVICE_ACCOUNT_JSON env var (JSON string
+of a GCP service account key). The service account must be granted access to
+the target calendar via Google Calendar's sharing settings.
 
 Usage: python -m utils.mcp.google_calendar.server
 """
 
+import json
 import os
 from typing import Any
 
@@ -26,17 +28,17 @@ _DEFAULT_CALENDAR = "primary"
 
 def _get_service():
     """Build and return an authenticated Google Calendar API service."""
-    from google.oauth2.credentials import Credentials
+    from google.oauth2.service_account import Credentials
     from googleapiclient.discovery import build
 
-    creds_path = os.environ.get("GOOGLE_OAUTH_CREDENTIALS", "")
-    if not creds_path or not os.path.exists(creds_path):
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    if not sa_json:
         raise ValueError(
-            "GOOGLE_OAUTH_CREDENTIALS not set or file not found. "
-            "Set it to the path of your OAuth2 authorized-user JSON file."
+            "GOOGLE_SERVICE_ACCOUNT_JSON not set. "
+            "Set it to the JSON content of your GCP service account key."
         )
 
-    creds = Credentials.from_authorized_user_file(creds_path, _SCOPES)
+    creds = Credentials.from_service_account_info(json.loads(sa_json), scopes=_SCOPES)
     return build("calendar", "v3", credentials=creds)
 
 

@@ -187,10 +187,7 @@ register(
     command=sys.executable,
     args=[_GOOGLE_CALENDAR_SERVER_PATH],
     env=lambda: {
-        "GOOGLE_OAUTH_CREDENTIALS": os.getenv("GOOGLE_OAUTH_CREDENTIALS", ""),
+        "GOOGLE_SERVICE_ACCOUNT_JSON": os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", ""),
     },
-    configured=lambda: bool(
-        os.getenv("GOOGLE_OAUTH_CREDENTIALS", "")
-        and os.path.exists(os.getenv("GOOGLE_OAUTH_CREDENTIALS", ""))
-    ),
+    configured=lambda: bool(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")),
 )
