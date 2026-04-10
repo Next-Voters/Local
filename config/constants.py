@@ -28,7 +28,7 @@ MAX_REFLECTION_ENTRIES: int = 5
 
 # Maximum graph steps before LangGraph raises a recursion error.
 # Prevents unbounded tool-call loops in multi-city runs.
-AGENT_RECURSION_LIMIT: int = 25
+AGENT_RECURSION_LIMIT: int = 40
 
 # ---------------------------------------------------------------------------
 # PDF extraction
