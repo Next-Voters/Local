@@ -42,7 +42,7 @@ async def build_legislation_finder():
     
     gcal_tools = await _load_gcal_tools()
     target_gcal_tools_name = {"create_event", "get_calendar_events", "update_event"}
-    selected_gcal_tools = [t for t in gcal_tools if t.name in target_gcal_tools_name]
+    selected_gcal_tools = [tool for tool in gcal_tools if tool.name in target_gcal_tools_name]
     
     agent = BaseReActAgent(
         state_schema=LegislationFinderState,
