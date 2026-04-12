@@ -5,6 +5,7 @@ and creates Google Calendar events for legislative dates via a remote MCP server
 """
 
 import logging
+import os
 from datetime import datetime, timedelta
 
 from langchain_mcp_adapters.tools import load_mcp_tools
@@ -22,14 +23,20 @@ _GCAL_MCP_URL = "https://gcal.mintmcp.com/mcp"
 
 
 async def _load_gcal_tools():
-    """Load the create_event tool from the remote Google Calendar MCP server."""
-    read, write, _ = await streamablehttp_client(_GCAL_MCP_URL).__aenter__()
+    """Load calendar tools from the remote Google Calendar MCP server."""
+    headers = {}
+    token = os.getenv("MINTMCP_AUTH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    read, write, _ = await streamablehttp_client(
+        _GCAL_MCP_URL, headers=headers
+    ).__aenter__()
     session = ClientSession(read, write)
     await session.__aenter__()
     await session.initialize()
     tools = await load_mcp_tools(session)
     return tools
-
 async def build_legislation_finder():
     """Build the legislation finder agent with web_search + remote create_event."""
     
