@@ -12,7 +12,7 @@ from langchain_core.runnables import RunnableLambda
 
 from utils.async_runner import run_async
 from utils.content.compressor import compress_text
-from utils.mcp.tavily.extract import extract_url_content
+from utils.tools.utils.extract import extract_url_content
 from utils.schemas import ChainData
 
 logger = logging.getLogger(__name__)

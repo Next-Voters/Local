@@ -1,11 +1,12 @@
 """Web search tool adapter for legislation discovery.
 
-Thin adapter that calls the Tavily MCP server and wraps results
+Thin adapter that calls Tavily search functions and wraps results
 in LangGraph Commands for state updates.  PDF URLs are detected
 deterministically and their content is extracted inline via
 pymupdf4llm so it is available immediately in pipeline state.
 """
 
+import asyncio
 import logging
 from typing import Annotated, Any
 
@@ -14,9 +15,9 @@ from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from utils.content.compressor import compress_text
-from utils.mcp import registry as mcp
 from utils.content.pdf_extractor import is_pdf_url, download_and_parse_pdf
 from utils.tools._helpers import ok, err
+from utils.tools.tavily import search_legislation
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +73,8 @@ async def web_search(
         A Command object that updates the state with search results.
     """
     try:
-        raw_results = await mcp.call(
-            "tavily",
-            "search_legislation",
-            {"query": query, "city": city, "max_results": max_results},
+        raw_results = await asyncio.to_thread(
+            search_legislation, query=query, city=city, max_results=max_results
         )
 
         results = _extract_search_results(raw_results)

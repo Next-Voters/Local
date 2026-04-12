@@ -1,5 +1,4 @@
 import logging
-from contextlib import AsyncExitStack
 
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableLambda
@@ -7,28 +6,24 @@ from langchain_core.runnables import RunnableLambda
 from config.constants import AGENT_RECURSION_LIMIT
 from utils.schemas import ChainData
 from utils.async_runner import run_async
-from utils.mcp import registry as mcp
 from utils.content.source_reliability import filter_sources
 
 logger = logging.getLogger(__name__)
 
 
 async def _invoke_legislation_finder(city: str) -> dict:
-    """Invoke the legislation finder agent with an initial task message."""
-    from agents.legislation_finder import legislation_finder_agent
-    async with AsyncExitStack() as stack:
-        await stack.enter_async_context(mcp.session("tavily"))
-        if mcp.is_configured("google_calendar"):
-            await stack.enter_async_context(mcp.session("google_calendar"))
-        return await legislation_finder_agent.ainvoke(
-            {
-                "city": city,
-                "messages": [
-                    HumanMessage(content=f"Find recent legislation for {city}.")
-                ],
-            },
-            config={"recursion_limit": AGENT_RECURSION_LIMIT},
-        )
+    """Build and invoke the legislation finder agent."""
+    from agents.legislation_finder import build_legislation_finder
+    agent = await build_legislation_finder()
+    return await agent.ainvoke(
+        {
+            "city": city,
+            "messages": [
+                HumanMessage(content=f"Find recent legislation for {city}.")
+            ],
+        },
+        config={"recursion_limit": AGENT_RECURSION_LIMIT},
+    )
 
 
 def run_legislation_finder(inputs: ChainData) -> ChainData:
@@ -59,21 +54,11 @@ def run_legislation_finder(inputs: ChainData) -> ChainData:
         if (s["url"] if isinstance(s, dict) else s) in accepted_urls
     ]
 
-    # Extract and deduplicate legislative events by (title, start_date).
-    raw_events = agent_result.get("legislative_events", [])
-    seen_events: set[tuple[str, str]] = set()
-    legislative_events = []
-    for ev in raw_events:
-        key = (ev.title, ev.start_date)
-        if key not in seen_events:
-            seen_events.add(key)
-            legislative_events.append(ev)
-
     logger.info(
-        "Legislation finder for %s: %d accepted / %d unique, %d events",
-        city, len(legislation_sources), len(unique_sources), len(legislative_events),
+        "Legislation finder for %s: %d accepted / %d unique",
+        city, len(legislation_sources), len(unique_sources),
     )
-    return {**inputs, "legislation_sources": legislation_sources, "legislative_events": legislative_events}
+    return {**inputs, "legislation_sources": legislation_sources}
 
 
 legislation_finder_chain = RunnableLambda(run_legislation_finder)

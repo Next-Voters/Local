@@ -1,6 +1,6 @@
 """Tavily URL content extraction via the tavily-python SDK.
 
-This is a direct SDK call (not MCP). Used by the content_retrieval pipeline node.
+Async function using AsyncTavilyClient. Used by the content_retrieval pipeline node.
 """
 
 from __future__ import annotations
