@@ -13,13 +13,18 @@ containing only the reports matching their selected topics.
 import json
 import os
 import time
+import uuid
 import queue
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
-from utils.supabase_client import get_all_subscribers_with_cities_and_topics
+from utils.supabase_client import (
+    get_all_subscribers_with_cities_and_topics,
+    get_subscriber_referral_code,
+    set_subscriber_referral_code,
+)
 from utils.report.translator import LANG_MAP
 from utils.email import (
     SMTPConnectionPool,
@@ -27,6 +32,9 @@ from utils.email import (
     render_template,
     send_single_email,
     is_email_configured,
+    build_social_share_urls,
+    build_all_topic_sections_html,
+    build_table_of_contents_html,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,35 +54,34 @@ def save_failures(failures: list[dict]):
     logger.warning(f"Saved {len(failures)} email delivery failures to {failures_path}")
 
 
-def _build_subscriber_markdown(
+def _build_subscriber_topic_reports(
     subscriber_topics: list[str],
     city_reports: dict[str, str],
-) -> str:
-    """Build combined markdown from matching topic reports for a subscriber.
+) -> list[tuple[str, str]]:
+    """Build list of (topic_name, markdown) tuples from matching topic reports for a subscriber.
 
     Args:
         subscriber_topics: List of topic names the subscriber is interested in
         city_reports: Dict mapping topic name to markdown report for the subscriber's city
 
     Returns:
-        Combined markdown string with topic sections, or empty string if no matches
+        List of (topic_name, markdown) tuples for matching topics
     """
-    sections = []
+    reports = []
     for topic in subscriber_topics:
         topic_report = city_reports.get(topic)
         if topic_report:
-            sections.append(topic_report)
+            reports.append((topic, topic_report))
+    return reports
 
-    return "\n\n---\n\n".join(sections)
 
-
-def _build_translated_subscriber_markdown(
+def _build_translated_subscriber_topic_reports(
     subscriber_topics: list[str],
     city: str,
     lang_code: str,
     translations: dict[str, dict[str, dict[str, str]]],
-) -> str:
-    """Build combined translated markdown for a subscriber's preferred language.
+) -> list[tuple[str, str]]:
+    """Build list of (topic_name, translated_markdown) tuples for a subscriber's preferred language.
 
     Args:
         subscriber_topics: List of topic names the subscriber is interested in.
@@ -83,19 +90,18 @@ def _build_translated_subscriber_markdown(
         translations: Nested dict {city: {topic: {lang: translated_markdown}}}.
 
     Returns:
-        Combined translated markdown, or empty string if no translations available.
+        List of (topic_name, translated_markdown) tuples, or empty list if no translations available.
     """
     city_translations = translations.get(city, {})
     if not city_translations:
-        return ""
+        return []
 
-    sections = []
+    reports = []
     for topic in subscriber_topics:
         translated = city_translations.get(topic, {}).get(lang_code, "")
         if translated:
-            sections.append(translated)
-
-    return "\n\n---\n\n".join(sections)
+            reports.append((topic, translated))
+    return reports
 
 
 def dispatch_emails_to_subscribers(
@@ -216,21 +222,21 @@ def dispatch_emails_to_subscribers(
 
         if lang_code and translations:
             # Try to build translated content for the preferred language
-            combined_markdown = _build_translated_subscriber_markdown(
+            topic_reports = _build_translated_subscriber_topic_reports(
                 topics, city, lang_code, translations
             )
-            if not combined_markdown:
+            if not topic_reports:
                 # Fall back to English if translation is not available
                 logger.info(
                     f"No {preferred_language} translation for {contact} ({city}); "
                     f"falling back to English"
                 )
-                combined_markdown = _build_subscriber_markdown(topics, city_reports)
+                topic_reports = _build_subscriber_topic_reports(topics, city_reports)
         else:
             # English or no preference — use original reports
-            combined_markdown = _build_subscriber_markdown(topics, city_reports)
+            topic_reports = _build_subscriber_topic_reports(topics, city_reports)
 
-        if not combined_markdown:
+        if not topic_reports:
             logger.warning(
                 f"No matching topic reports for subscriber {contact} "
                 f"(city={city}, topics={topics})"
@@ -244,9 +250,28 @@ def dispatch_emails_to_subscribers(
             })
             continue
 
-        # Convert to HTML and queue for sending
-        html_content = convert_markdown_to_html(combined_markdown)
-        html_body = render_template(html_content)
+        # Resolve or generate referral code for this subscriber
+        try:
+            referral_code = get_subscriber_referral_code(contact)
+            if not referral_code:
+                referral_code = uuid.uuid4().hex[:8]
+                set_subscriber_referral_code(contact, referral_code)
+        except Exception as e:
+            logger.warning(f"Could not resolve referral code for {contact}: {e}")
+            referral_code = None
+
+        # Convert to HTML topic sections and queue for sending
+        topic_html_pairs = [(name, convert_markdown_to_html(md)) for name, md in topic_reports]
+        topic_names = [name for name, _ in topic_reports]
+        sections_html = build_all_topic_sections_html(topic_html_pairs, referral_code=referral_code, city=city)
+        social_share_urls = build_social_share_urls(referral_code=referral_code)
+        toc_html = build_table_of_contents_html(topic_names)
+        html_body = render_template(
+            "",
+            topic_sections_html=sections_html,
+            social_share_urls=social_share_urls,
+            table_of_contents_html=toc_html,
+        )
 
         send_queue.append({
             "contact": contact,

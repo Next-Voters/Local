@@ -270,6 +270,68 @@ def get_all_subscribers_with_cities_and_topics() -> list[dict[str, Any]]:
         raise
 
 
+def get_subscriber_referral_code(email: str) -> str | None:
+    """Read the referral_code for a subscriber from the subscriptions table.
+
+    Args:
+        email: Subscriber's email address (contact column).
+
+    Returns:
+        The referral code string, or None if not set.
+
+    Raises:
+        ValueError: If Supabase credentials are missing.
+        Exception: If the database query fails.
+    """
+    try:
+        client = get_supabase_client()
+
+        response = (
+            client.table("subscriptions")
+            .select("referral_code")
+            .eq("contact", email)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            return response.data[0].get("referral_code")
+        return None
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get referral code for {email}: {e}")
+        raise
+
+
+def set_subscriber_referral_code(email: str, code: str) -> None:
+    """Update the referral_code on a subscriber's subscription record.
+
+    Args:
+        email: Subscriber's email address (contact column).
+        code: Referral code to set.
+
+    Raises:
+        ValueError: If Supabase credentials are missing.
+        Exception: If the database update fails.
+    """
+    try:
+        client = get_supabase_client()
+
+        client.table("subscriptions").update(
+            {"referral_code": code}
+        ).eq("contact", email).execute()
+
+        logger.debug(f"Set referral code for {email}: {code}")
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to set referral code for {email}: {e}")
+        raise
+
+
 def get_subscribers_for_city(city: str) -> list[str]:
     """
     Query subscribers for a specific city.
