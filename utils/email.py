@@ -438,13 +438,7 @@ def build_all_topic_sections_html(
     sections = []
     for i, (name, content) in enumerate(topics):
         color = get_topic_color(name)
-        topic_share_urls = build_social_share_urls(referral_code, city, name)
-        share_row = build_topic_share_row_html(
-            topic_share_urls["twitter"],
-            topic_share_urls["facebook"],
-            topic_share_urls["linkedin"],
-        )
-        sections.append(build_topic_section_html(name, content, topic_color=color, share_row_html=share_row))
+        sections.append(build_topic_section_html(name, content, topic_color=color))
         if i < len(topics) - 1:
             sections.append(build_topic_divider_html())
     return "\n".join(sections)
