@@ -12,4 +12,6 @@ RUN TMPDIR=/tmp pip install --no-cache-dir --no-clean -r requirements.txt \
 
 COPY . .
 
+ENV PYTHONPATH=/app
+
 CMD ["python", "runners/run_container_job.py"]
