@@ -90,6 +90,11 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
             except (httpx.HTTPError, httpx.InvalidURL, ValueError):
                 pass
 
+    # Cap raw content per URL before compression to prevent context overflow.
+    # Even after LLMLingua-2 compression at 40%, 140K chars → 56K tokens per
+    # source.  With 10 sources that blows past the 272K-token limit.
+    _MAX_RAW_CHARS = 15_000
+
     # Assemble final content list in the original source order.
     legislation_content: list[str] = []
     for url in ordered_urls:
@@ -97,7 +102,10 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
             # Already compressed by the web_search tool — pass through.
             legislation_content.append(pre_fetched[url])
         elif url in url_to_content:
-            legislation_content.append(compress_text(url_to_content[url]))
+            raw = url_to_content[url]
+            if len(raw) > _MAX_RAW_CHARS:
+                raw = raw[:_MAX_RAW_CHARS]
+            legislation_content.append(compress_text(raw))
         else:
             legislation_content.append(f"[Failed to fetch: {url}]")
 
