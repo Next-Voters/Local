@@ -51,7 +51,7 @@ async def web_search(
     query: str,
     tool_call_id: Annotated[str, InjectedToolCallId],
     city: Annotated[str, InjectedState("city")],
-    max_results: int = 10,
+    max_results: int = 5,
 ) -> Command:
     """Search the web for legislation related to a specific municipality or topic.
 

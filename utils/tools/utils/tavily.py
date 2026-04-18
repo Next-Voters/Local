@@ -85,7 +85,7 @@ def tavily_search(
 def search_legislation(
     query: str,
     city: str,
-    max_results: int = 10,
+    max_results: int = 5,
 ) -> dict:
     """Search for municipal legislation via Tavily.
 
