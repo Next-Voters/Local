@@ -10,8 +10,6 @@ Each subscriber receives a personalized email in their preferred language,
 containing only the reports matching their selected topics.
 """
 
-import json
-import os
 import time
 import uuid
 import queue
@@ -26,82 +24,20 @@ from utils.supabase_client import (
     set_subscriber_referral_code,
 )
 from utils.report.translator import LANG_MAP
-from utils.email import (
-    SMTPConnectionPool,
-    convert_markdown_to_html,
-    render_template,
-    send_single_email,
-    is_email_configured,
+from utils.email.smtp import SMTPConnectionPool, send_single_email, is_email_configured
+from utils.email.templates import convert_markdown_to_html, render_template
+from utils.email.components import (
     build_social_share_urls,
     build_all_topic_sections_html,
     build_table_of_contents_html,
 )
+from pipelines.node.email_subscriber_content import (
+    build_subscriber_topic_reports,
+    build_translated_subscriber_topic_reports,
+    save_failures,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def save_failures(failures: list[dict]):
-    """Save email delivery failures to a JSON file.
-
-    Args:
-        failures: List of failure records
-    """
-    if not failures:
-        return
-    failures_path = os.path.join(os.path.dirname(__file__), "..", "email_failures.json")
-    with open(failures_path, "w") as f:
-        json.dump(failures, f, indent=2)
-    logger.warning(f"Saved {len(failures)} email delivery failures to {failures_path}")
-
-
-def _build_subscriber_topic_reports(
-    subscriber_topics: list[str],
-    city_reports: dict[str, str],
-) -> list[tuple[str, str]]:
-    """Build list of (topic_name, markdown) tuples from matching topic reports for a subscriber.
-
-    Args:
-        subscriber_topics: List of topic names the subscriber is interested in
-        city_reports: Dict mapping topic name to markdown report for the subscriber's city
-
-    Returns:
-        List of (topic_name, markdown) tuples for matching topics
-    """
-    reports = []
-    for topic in subscriber_topics:
-        topic_report = city_reports.get(topic)
-        if topic_report:
-            reports.append((topic, topic_report))
-    return reports
-
-
-def _build_translated_subscriber_topic_reports(
-    subscriber_topics: list[str],
-    city: str,
-    lang_code: str,
-    translations: dict[str, dict[str, dict[str, str]]],
-) -> list[tuple[str, str]]:
-    """Build list of (topic_name, translated_markdown) tuples for a subscriber's preferred language.
-
-    Args:
-        subscriber_topics: List of topic names the subscriber is interested in.
-        city: The subscriber's city.
-        lang_code: Target language code (e.g. "ES", "FR").
-        translations: Nested dict {city: {topic: {lang: translated_markdown}}}.
-
-    Returns:
-        List of (topic_name, translated_markdown) tuples, or empty list if no translations available.
-    """
-    city_translations = translations.get(city, {})
-    if not city_translations:
-        return []
-
-    reports = []
-    for topic in subscriber_topics:
-        translated = city_translations.get(topic, {}).get(lang_code, "")
-        if translated:
-            reports.append((topic, translated))
-    return reports
 
 
 def dispatch_emails_to_subscribers(
@@ -222,7 +158,7 @@ def dispatch_emails_to_subscribers(
 
         if lang_code and translations:
             # Try to build translated content for the preferred language
-            topic_reports = _build_translated_subscriber_topic_reports(
+            topic_reports = build_translated_subscriber_topic_reports(
                 topics, city, lang_code, translations
             )
             if not topic_reports:
@@ -231,10 +167,10 @@ def dispatch_emails_to_subscribers(
                     f"No {preferred_language} translation for {contact} ({city}); "
                     f"falling back to English"
                 )
-                topic_reports = _build_subscriber_topic_reports(topics, city_reports)
+                topic_reports = build_subscriber_topic_reports(topics, city_reports)
         else:
             # English or no preference — use original reports
-            topic_reports = _build_subscriber_topic_reports(topics, city_reports)
+            topic_reports = build_subscriber_topic_reports(topics, city_reports)
 
         if not topic_reports:
             logger.warning(

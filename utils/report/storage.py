@@ -5,7 +5,7 @@ import logging
 from datetime import date
 
 from utils.supabase_client import get_supabase_client
-from utils.email import convert_markdown_to_html, render_template
+from utils.email.templates import convert_markdown_to_html, render_template
 
 logger = logging.getLogger(__name__)
 

@@ -17,13 +17,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from langchain_core.runnables import RunnableLambda
 
-from utils.email import (
-    SMTPConnectionPool,
-    convert_markdown_to_html,
-    render_template,
-    send_single_email,
-    is_email_configured,
-)
+from utils.email.smtp import SMTPConnectionPool, send_single_email, is_email_configured
+from utils.email.templates import convert_markdown_to_html, render_template
 from utils.schemas.state import ChainData
 
 logger = logging.getLogger(__name__)
