@@ -12,6 +12,8 @@ import os
 import deepl
 from dotenv import load_dotenv
 
+from utils.concurrency import run_parallel
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -67,23 +69,34 @@ def translate_all_reports(
     if not reports:
         return {}
 
+    # Build the full (city, topic, lang, text) job list up front so we can
+    # fan out with run_parallel. Each DeepL call is a blocking HTTP request,
+    # so threads are the right concurrency primitive here.
+    jobs: list[tuple[str, str, str, str]] = [
+        (city, topic, lang, text)
+        for city, topics in reports.items()
+        for topic, text in topics.items()
+        if text
+        for lang in TARGET_LANGUAGES
+    ]
+
+    def _job(item: tuple[str, str, str, str]) -> str:
+        _, _, lang, text = item
+        return translate_text(translator, text, lang)
+
+    results = run_parallel(_job, jobs)
+
     translations: dict[str, dict[str, dict[str, str]]] = {}
-    total_jobs = 0
     successful = 0
+    for res in results:
+        city, topic, lang, _ = res.item
+        if res.ok and res.value:
+            translations.setdefault(city, {}).setdefault(topic, {})[lang] = res.value
+            successful += 1
+        else:
+            logger.warning(
+                "Translation failed for %s/%s/%s: %r", city, topic, lang, res.error
+            )
 
-    for city, topics in reports.items():
-        for topic, text in topics.items():
-            if not text:
-                continue
-            for lang in TARGET_LANGUAGES:
-                total_jobs += 1
-                try:
-                    translated = translate_text(translator, text, lang)
-                    if translated:
-                        translations.setdefault(city, {}).setdefault(topic, {})[lang] = translated
-                        successful += 1
-                except Exception as e:
-                    logger.warning(f"Translation failed for {city}/{topic}/{lang}: {e}")
-
-    logger.info(f"Successfully translated {successful}/{total_jobs} report segments")
+    logger.info(f"Successfully translated {successful}/{len(jobs)} report segments")
     return translations

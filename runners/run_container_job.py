@@ -6,9 +6,10 @@ import os
 import sys
 import logging
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+
+from utils.concurrency import run_parallel
 
 try:
     from dotenv import load_dotenv
@@ -35,7 +36,13 @@ logger = logging.getLogger(__name__)
 def run_pipeline_instances(
     targets: Sequence[tuple[str, str]],
 ) -> dict[tuple[str, str], dict[str, Any]]:
-    """Execute one pipeline instance per (city, topic) target concurrently."""
+    """Execute one pipeline instance per (city, topic) target concurrently.
+
+    Uses the shared ``run_parallel`` helper so worker sizing is consistent
+    across the codebase. The old hardcoded 4-worker ceiling was a
+    defensive cap against OOM; run_parallel picks ``min(len(items), cpu*2)``
+    which matches or beats that floor on typical container sizes.
+    """
 
     ordered_targets = tuple(targets)
     results_by_target: dict[tuple[str, str], dict[str, Any]] = {}
@@ -43,25 +50,24 @@ def run_pipeline_instances(
     if not ordered_targets:
         return results_by_target
 
-    with ThreadPoolExecutor(max_workers=len(ordered_targets)) as executor:
-        futures = {
-            executor.submit(run_pipeline, city, topic): (city, topic)
-            for city, topic in ordered_targets
-        }
+    results = run_parallel(
+        lambda target: run_pipeline(target[0], target[1]),
+        ordered_targets,
+    )
 
-        for future in as_completed(futures):
-            target = futures[future]
-            city, topic = target
-
-            try:
-                result = future.result()
-                results_by_target[target] = result
-                report_cache.store(city, topic, result.get("markdown_report", ""))
-            except Exception as exc:  # noqa: BLE001
-                results_by_target[target] = {
-                    "error": f"{type(exc).__name__}: {exc}",
-                    "markdown_report": "",
-                }
+    for res in results:
+        target = res.item
+        city, topic = target
+        if res.ok and res.value is not None:
+            result = res.value
+            results_by_target[target] = result
+            report_cache.store(city, topic, result.get("markdown_report", ""))
+        else:
+            exc = res.error
+            results_by_target[target] = {
+                "error": f"{type(exc).__name__}: {exc}" if exc else "unknown error",
+                "markdown_report": "",
+            }
 
     return results_by_target
 

@@ -15,10 +15,13 @@ def _get_model():
 def research_summary_writer(inputs: ChainData) -> ChainData:
     notes = inputs.get("notes")
 
-    system_prompt = writer_sys_prompt.format(notes=notes)
-
+    # Static system prompt keeps the prefix stable across invocations so
+    # GPT-5 can cache it; the per-run notes go in the user message.
     ai_generated_summary: WriterOutput = _get_model().invoke(
-        [{"role": "system", "content": system_prompt}],
+        [
+            {"role": "system", "content": writer_sys_prompt},
+            {"role": "user", "content": f"Research notes to transform:\n\n{notes or ''}"},
+        ],
     )
 
     if ai_generated_summary is None:

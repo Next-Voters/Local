@@ -17,6 +17,7 @@ from config.constants import (
     CONTENT_TOTAL_CHAR_BUDGET,
 )
 from utils.async_runner import run_async
+from utils.concurrency import run_parallel
 from utils.content.compressor import compress_text
 from utils.tools.utils.extract import extract_url_content
 from utils.schemas import ChainData
@@ -100,17 +101,41 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
             except (httpx.HTTPError, httpx.InvalidURL, ValueError):
                 pass
 
+    def _compress_capped(url: str) -> str:
+        raw = url_to_content[url]
+        if len(raw) > per_url_cap:
+            raw = raw[:per_url_cap]
+        return compress_text(raw)
+
+    # Compress newly-fetched pages in parallel. BERT forward passes release
+    # the GIL, so threads give real wall-clock wins over the previous
+    # sequential compress_text loop. Raw text is capped at per_url_cap
+    # before compression to keep the downstream LLM context bounded.
+    compress_targets = [u for u in ordered_urls if u in url_to_content and u not in pre_fetched]
+    compressed_by_url: dict[str, str] = {}
+    if compress_targets:
+        parallel_results = run_parallel(_compress_capped, compress_targets)
+        for res in parallel_results:
+            if res.ok and res.value is not None:
+                compressed_by_url[res.item] = res.value
+            else:
+                logger.warning("Compression failed for %s: %r", res.item, res.error)
+
     # Assemble final content list in the original source order.
     legislation_content: list[str] = []
     for url in ordered_urls:
         if url in pre_fetched:
             # Already compressed by the web_search tool — pass through.
             legislation_content.append(pre_fetched[url])
+        elif url in compressed_by_url:
+            legislation_content.append(compressed_by_url[url])
         elif url in url_to_content:
+            # Parallel compression failed; fall back to the capped raw text
+            # so the downstream context stays bounded.
             raw = url_to_content[url]
             if len(raw) > per_url_cap:
                 raw = raw[:per_url_cap]
-            legislation_content.append(compress_text(raw))
+            legislation_content.append(raw)
         else:
             legislation_content.append(f"[Failed to fetch: {url}]")
 

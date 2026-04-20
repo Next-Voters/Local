@@ -56,8 +56,5 @@ One line. Specific and factual. No questions, no clickbait.
 - If the notes contain no clear facts (only opinions or speculation), respond with: `[Unable to summarize — no verifiable facts found in the provided notes.]`
 - Do not ask clarifying questions. Work with what you have.
 
-## Research Notes
-<notes>
-{notes}
-</notes>
+The research notes to transform will be supplied in the next message.
 """
