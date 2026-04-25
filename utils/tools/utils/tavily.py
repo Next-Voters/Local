@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from tavily import TavilyClient
 
-_MIN_SCORE = 0.30
+_MIN_SCORE = 0.15
 _MAX_RESULTS_CAP = 20
 
 _EXCLUDE_DOMAINS = [
@@ -110,7 +110,7 @@ def search_legislation(
         "max_results": fetch_count,
         "search_depth": "advanced",
         "topic": "general",
-        "time_range": "week",
+        "time_range": "month",
         "include_answer": False,
         "include_images": False,
         "include_raw_content": False,
