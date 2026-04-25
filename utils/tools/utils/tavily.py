@@ -3,8 +3,11 @@
 All functions are synchronous (use TavilyClient).
 """
 
+import logging
 import os
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 
@@ -120,10 +123,22 @@ def search_legislation(
     raw = client.search(**kwargs)
 
     results = raw.get("results", [])
+    raw_count = len(results)
     if results:
+        scores = [float(r.get("score", 0)) for r in results]
+        logger.info(
+            "Tavily returned %d raw results for query=%r city=%r; scores=%s",
+            raw_count, query, city, scores,
+        )
         results.sort(key=lambda r: float(r.get("score", 0)), reverse=True)
         results = [r for r in results if float(r.get("score", 0)) >= _MIN_SCORE]
+        logger.info(
+            "After score filter (>= %.2f): %d/%d results remain",
+            _MIN_SCORE, len(results), raw_count,
+        )
         results = results[:max_results]
         raw["results"] = results
+    else:
+        logger.warning("Tavily returned 0 results for query=%r city=%r", query, city)
 
     return raw
