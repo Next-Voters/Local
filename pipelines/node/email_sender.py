@@ -105,7 +105,13 @@ def send_email_to_subscribers(inputs: ChainData) -> ChainData:
     logger.info(f"Sending report email to {len(emails)} subscriber(s)")
 
     html_content = convert_markdown_to_html(markdown_report)
-    html_body = render_template(html_content)
+    section = (
+        '<tr><td style="padding-top: 16px; font-family: -apple-system, '
+        "BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; "
+        'font-size: 15px; color: #1A1A1A; line-height: 1.6;">'
+        f"{html_content}</td></tr>"
+    )
+    html_body = render_template(section)
 
     try:
         pool = SMTPConnectionPool(pool_size=10)
