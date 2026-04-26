@@ -21,8 +21,15 @@ def _slugify(text: str) -> str:
 
 
 def _render(md: str) -> str:
-    """Convert markdown to full branded HTML."""
-    return render_template(convert_markdown_to_html(md))
+    """Convert markdown to a full HTML page using the email template."""
+    body = convert_markdown_to_html(md)
+    section = (
+        '<tr><td style="padding-top: 16px; font-family: -apple-system, '
+        "BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; "
+        'font-size: 15px; color: #1A1A1A; line-height: 1.6;">'
+        f"{body}</td></tr>"
+    )
+    return render_template(section)
 
 
 def upload_report(city: str, topic: str, html: str, lang: str = "en") -> str | None:

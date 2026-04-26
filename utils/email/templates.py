@@ -1,9 +1,8 @@
 """
 Email template rendering.
 
-Loads the branded HTML template from disk, converts markdown report bodies
-to HTML, and fills the template placeholders (topic sections, TOC, social
-share URLs, main content).
+Loads the minimal HTML template from disk, converts markdown report bodies
+to HTML, and fills the template placeholders (intro, topic sections).
 """
 
 import os
@@ -11,8 +10,6 @@ import logging
 from functools import lru_cache
 
 import markdown
-
-from utils.email.components import build_social_share_urls
 
 logger = logging.getLogger(__name__)
 
@@ -40,47 +37,27 @@ def load_template() -> str:
 
 
 def convert_markdown_to_html(markdown_content: str) -> str:
-    """Convert markdown content to HTML.
-
-    Args:
-        markdown_content: Markdown text to convert
-
-    Returns:
-        HTML representation of the markdown
-    """
+    """Convert markdown content to HTML."""
     return markdown.markdown(markdown_content)
 
 
 def render_template(
-    html_content: str,
-    topic_sections_html: str | None = None,
-    social_share_urls: dict[str, str] | None = None,
-    table_of_contents_html: str | None = None,
+    topic_sections_html: str,
+    intro_html: str = "",
+    unsubscribe_url: str = "#",
 ) -> str:
-    """Render the email template with HTML content and optional social share URLs.
+    """Render the minimal email template.
 
     Args:
-        html_content: HTML content to insert into template
-        topic_sections_html: Optional HTML for topic sections to replace {{TOPIC_SECTIONS}}.
-        social_share_urls: Optional dict with 'twitter', 'facebook', 'linkedin' share URLs.
-                           If None, default URLs (without referral code) are used.
-        table_of_contents_html: Optional HTML for the table of contents to replace
-                                {{TABLE_OF_CONTENTS}}. If None, the placeholder is removed.
+        topic_sections_html: HTML for the topic sections, replaces {{TOPIC_SECTIONS}}.
+        intro_html: HTML for the greeting + framing paragraphs at the top.
+        unsubscribe_url: URL for the footer unsubscribe link.
 
     Returns:
         Complete HTML email body.
     """
     template = load_template()
-    template = template.replace("{{TABLE_OF_CONTENTS}}", table_of_contents_html or "")
-    if topic_sections_html is not None:
-        template = template.replace("{{TOPIC_SECTIONS}}", topic_sections_html)
-    rendered = template.replace("{{CONTENT}}", html_content)
-
-    if social_share_urls is None:
-        social_share_urls = build_social_share_urls()
-
-    rendered = rendered.replace("{{TWITTER_SHARE_URL}}", social_share_urls["twitter"])
-    rendered = rendered.replace("{{FACEBOOK_SHARE_URL}}", social_share_urls["facebook"])
-    rendered = rendered.replace("{{LINKEDIN_SHARE_URL}}", social_share_urls["linkedin"])
-
-    return rendered
+    template = template.replace("{{INTRO_HTML}}", intro_html)
+    template = template.replace("{{TOPIC_SECTIONS}}", topic_sections_html)
+    template = template.replace("{{UNSUBSCRIBE_URL}}", unsubscribe_url)
+    return template

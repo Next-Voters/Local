@@ -27,9 +27,8 @@ from utils.report.translator import LANG_MAP
 from utils.email.smtp import SMTPConnectionPool, send_single_email, is_email_configured
 from utils.email.templates import convert_markdown_to_html, render_template
 from utils.email.components import (
-    build_social_share_urls,
     build_all_topic_sections_html,
-    build_table_of_contents_html,
+    build_intro_html,
 )
 from pipelines.node.email_subscriber_content import (
     build_subscriber_topic_reports,
@@ -198,15 +197,11 @@ def dispatch_emails_to_subscribers(
 
         # Convert to HTML topic sections and queue for sending
         topic_html_pairs = [(name, convert_markdown_to_html(md)) for name, md in topic_reports]
-        topic_names = [name for name, _ in topic_reports]
         sections_html = build_all_topic_sections_html(topic_html_pairs, referral_code=referral_code, city=city)
-        social_share_urls = build_social_share_urls(referral_code=referral_code)
-        toc_html = build_table_of_contents_html(topic_names)
+        intro_html = build_intro_html(city=city)
         html_body = render_template(
-            "",
             topic_sections_html=sections_html,
-            social_share_urls=social_share_urls,
-            table_of_contents_html=toc_html,
+            intro_html=intro_html,
         )
 
         send_queue.append({
