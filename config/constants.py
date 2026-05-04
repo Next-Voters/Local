@@ -25,7 +25,7 @@ WEB_SEARCH_MAX_RESULTS: int = 5
 
 
 # ---------------------------------------------------------------------------
-# Context compression (LongLLMLingua, local)
+# Context compression
 # ---------------------------------------------------------------------------
 
 # Fraction of tokens to retain after compression (0.0 = nothing, 1.0 = keep all).
@@ -34,6 +34,31 @@ COMPRESSION_RATE: float = 0.4
 
 # Skip compression for content shorter than this — overhead not worth it.
 MIN_CHARS_TO_COMPRESS: int = 1_000
+
+# ---------------------------------------------------------------------------
+# Token pruning (CompactPrompt blended self-information)
+# ---------------------------------------------------------------------------
+
+# Together AI model for dynamic self-information scoring.
+TOGETHER_MODEL: str = "openai/gpt-oss-20b"
+
+# Timeout for the Together AI logprobs API call (seconds).
+TOGETHER_TIMEOUT: int = 60
+
+# Maximum retries for Together AI API failures.
+TOGETHER_MAX_RETRIES: int = 2
+
+# Relative difference threshold for blending static and dynamic scores.
+# When |I_dyn - I_stat| / I_stat <= this value, use arithmetic mean.
+# When > this value, use dynamic score exclusively.
+BLEND_DELTA_THRESHOLD: float = 0.1
+
+# Score multiplier for tokens appearing in the pipeline topic query.
+QUERY_BOOST_FACTOR: float = 1.5
+
+# Default I_static for tokens not found in the wordfreq corpus (bits).
+# Set high so unknown tokens are conservatively preserved.
+STATIC_OOV_SCORE: float = 22.0
 
 # ---------------------------------------------------------------------------
 # Agent context limits

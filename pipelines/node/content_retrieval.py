@@ -111,10 +111,9 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
             raw = raw[:per_url_cap]
         return compress_text(raw, query=compression_query)
 
-    # Compress newly-fetched pages in parallel. LongLLMLingua runs the scorer
-    # model on CPU per segment, so threads overlap that CPU work across URLs.
-    # Raw text is capped at per_url_cap before compression to keep the
-    # downstream LLM context bounded.
+    # Compress newly-fetched pages in parallel. Raw text is capped at
+    # per_url_cap before compression to keep the downstream LLM context
+    # bounded.
     compress_targets = [u for u in ordered_urls if u in url_to_content and u not in pre_fetched]
     compressed_by_url: dict[str, str] = {}
     if compress_targets:
