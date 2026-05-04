@@ -8,6 +8,7 @@ share URLs, main content).
 
 import os
 import logging
+from datetime import datetime
 from functools import lru_cache
 
 import markdown
@@ -56,30 +57,36 @@ def render_template(
     topic_sections_html: str | None = None,
     social_share_urls: dict[str, str] | None = None,
     table_of_contents_html: str | None = None,
-    greeting: str = "Good morning, New Voters.",
-    intro: str = "",
+    city: str = "",
+    unsubscribe_url: str = "#",
 ) -> str:
     """Render the email template with HTML content and optional social share URLs.
 
     Args:
-        html_content: HTML content to insert into template
+        html_content: HTML content to insert into template.
         topic_sections_html: Optional HTML for topic sections to replace {{TOPIC_SECTIONS}}.
         social_share_urls: Optional dict with 'twitter', 'facebook', 'linkedin' share URLs.
                            If None, default URLs (without referral code) are used.
         table_of_contents_html: Optional HTML for the table of contents to replace
                                 {{TABLE_OF_CONTENTS}}. If None, the placeholder is removed.
-        greeting: Greeting text for the email header.
-        intro: Introductory text describing what the email covers.
+        city: City name used to build the header title and date line.
+        unsubscribe_url: Unsubscribe link inserted into the footer. Defaults to '#'.
 
     Returns:
         Complete HTML email body.
     """
+    now = datetime.now()
+    day = now.day
+    date_str = now.strftime(f"%B {day}, %Y").upper()
+
+    city_header = f"What's new in {city}?" if city else "What's new?"
+    header_date = f"{date_str} | {city.upper()}" if city else date_str
+
     template = load_template()
-    template = template.replace("{{GREETING}}", greeting)
-    template = template.replace("{{INTRO}}", intro)
+    template = template.replace("{{CITY_HEADER}}", city_header)
+    template = template.replace("{{HEADER_DATE}}", header_date)
     template = template.replace("{{TABLE_OF_CONTENTS}}", table_of_contents_html or "")
-    if topic_sections_html is not None:
-        template = template.replace("{{TOPIC_SECTIONS}}", topic_sections_html)
+    template = template.replace("{{TOPIC_SECTIONS}}", topic_sections_html or "")
     rendered = template.replace("{{CONTENT}}", html_content)
 
     if social_share_urls is None:
@@ -88,5 +95,6 @@ def render_template(
     rendered = rendered.replace("{{TWITTER_SHARE_URL}}", social_share_urls["twitter"])
     rendered = rendered.replace("{{FACEBOOK_SHARE_URL}}", social_share_urls["facebook"])
     rendered = rendered.replace("{{LINKEDIN_SHARE_URL}}", social_share_urls["linkedin"])
+    rendered = rendered.replace("{{UNSUBSCRIBE_URL}}", unsubscribe_url)
 
     return rendered

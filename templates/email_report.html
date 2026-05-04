@@ -6,7 +6,7 @@
     <title>Next Voters Brief</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand+SC&family=Inter:wght@400;700&family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
     <!--[if mso]>
     <style type="text/css">
         body, table, td {font-family: 'DM Sans', Arial, sans-serif !important;}
@@ -19,18 +19,38 @@
             <td align="center" style="padding: 20px 10px;">
                 <!-- MAIN CONTAINER -->
                 <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #FFFFFF; border-collapse: collapse;">
-                    <!-- HEADER -->
+
+                    <!-- HEADER: What's new in [City]? -->
                     <tr>
-                        <td style="padding: 30px 35px 10px 35px;">
-                            <span style="font-family: 'DM Sans', Arial, sans-serif; font-size: 13px; color: #E63946; font-weight: 700; letter-spacing: 1px;">NEXT VOTERS</span>
+                        <td style="padding: 32px 35px 4px 35px;">
+                            <h1 style="font-family: 'Patrick Hand SC', cursive; font-size: 34px; color: #1A1A1A; margin: 0; line-height: 1.15; font-weight: 400;">{{CITY_HEADER}}</h1>
                         </td>
                     </tr>
 
-                    <!-- GREETING & INTRO -->
+                    <!-- PRESENTED BY: NV -->
                     <tr>
-                        <td style="padding: 10px 35px 5px 35px;">
-                            <p style="font-family: 'DM Sans', Arial, sans-serif; font-size: 15px; color: #1A1A1A; margin: 0 0 10px 0; line-height: 1.6;">{{GREETING}}</p>
-                            <p style="font-family: 'DM Sans', Arial, sans-serif; font-size: 15px; color: #555555; margin: 0; line-height: 1.6;">{{INTRO}}</p>
+                        <td style="padding: 6px 35px 0 35px;">
+                            <p style="font-family: 'Inter', Arial, sans-serif; font-size: 12px; color: #888888; margin: 0; line-height: 1.4;">
+                                Presented by: <span style="font-family: 'Inter', Arial, sans-serif; font-weight: 700; color: #1A1A1A;">NV</span>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- DATE & LOCATION BAR -->
+                    <tr>
+                        <td style="padding: 14px 35px 20px 35px;">
+                            <p style="font-family: 'DM Sans', Arial, sans-serif; font-size: 10px; color: #888888; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; margin: 0;">{{HEADER_DATE}}</p>
+                        </td>
+                    </tr>
+
+                    <!-- THIN DIVIDER -->
+                    <tr>
+                        <td style="padding: 0 35px;">
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td style="height: 1px; background-color: #E0E0E0;"></td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
 
@@ -39,7 +59,7 @@
 
                     <!-- CONTENT AREA -->
                     {{TOPIC_SECTIONS}}
-                    <!-- {{CONTENT}} -->
+                    {{CONTENT}}
 
                     <!-- SOCIAL SHARE SECTION -->
                     <tr>
