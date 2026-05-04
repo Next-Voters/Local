@@ -13,6 +13,7 @@ containing only the reports matching their selected topics.
 import time
 import uuid
 import queue
+from urllib.parse import quote
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -202,19 +203,15 @@ def dispatch_emails_to_subscribers(
         sections_html = build_all_topic_sections_html(topic_html_pairs, referral_code=referral_code, city=city)
         social_share_urls = build_social_share_urls(referral_code=referral_code)
         toc_html = build_table_of_contents_html(topic_names)
-
-        intro = (
-            f"Here\u2019s what {city}, the statehouse, and Washington actually did this "
-            f"week \u2014 organized by topic, every claim cited."
-        )
+        unsubscribe_url = f"https://nextvoters.com/unsubscribe?email={quote(contact, safe='')}"
 
         html_body = render_template(
             "",
             topic_sections_html=sections_html,
             social_share_urls=social_share_urls,
             table_of_contents_html=toc_html,
-            greeting="Good morning, New Voters.",
-            intro=intro,
+            city=city,
+            unsubscribe_url=unsubscribe_url,
         )
 
         send_queue.append({
