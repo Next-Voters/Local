@@ -95,7 +95,7 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
   - `storage.py`: Uploads HTML reports to Supabase Storage with branded template rendering
   - `translator.py`: Translates all cached pipeline reports to Spanish (ES) and French (FR) synchronously via the DeepL SDK (`deepl` Python package). Uses direct `deepl.Translator` calls (no MCP layer). Exports `LANG_MAP` dict mapping language names to codes (e.g. `{"Spanish": "ES", "French": "FR"}`). Optional — gracefully skipped if `DEEPL_API_KEY` is not set.
 - `content/`: Content processing and evaluation utilities
-  - `compressor.py`: Query-aware context compression via `compress_text(text, rate, query)`. Thin wrapper around `llmlingua.PromptCompressor` running Microsoft's LongLLMLingua algorithm locally with a small causal LM (`Qwen/Qwen2.5-0.5B`, `use_llmlingua2=False`, `rank_method="longllmlingua"`, `reorder_context="sort"`). Model weights (~1 GB) download once on first invocation. On any compressor failure, falls back to head truncation so the pipeline never empties out.
+  - `compressor.py`: Context compression via `compress_text(text, rate, query)`. Retains the first `rate * len(text)` characters (head truncation). The `query` parameter is reserved for future query-aware pruning. Short content (<`MIN_CHARS_TO_COMPRESS` chars) bypasses compression.
   - `pdf_extractor.py`: PDF detection (HEAD request + suffix check) and PDF-to-Markdown conversion via pymupdf4llm.
   - `source_reliability.py`: Domain-level source reliability scoring and filtering — classifies URLs into government, legislative, news, other, or blocked tiers.
 - `email.py`: Consolidated email utilities — `SMTPConnectionPool` (thread-safe, context manager, NOOP health checks for stale connections), `is_email_configured()`, `load_template()`, `convert_markdown_to_html()`, `render_template()`, `create_mime_message()`, `send_single_email()`. Single source of truth for all SMTP and email rendering logic.
@@ -112,7 +112,7 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 ### Data Flow Example
 
 1. **Legislation Finder**: Agent uses Tavily search with prompt-based source filtering → outputs list of URLs
-2. **Content Retrieval**: Fetches each URL's text via Tavily Extract (with `markdown.new` as fallback); each block is then compressed query-aware (conditioned on the pipeline `topic`) via `utils/content/compressor.py` → list of compressed text blocks
+2. **Content Retrieval**: Fetches each URL's text via Tavily Extract (with `markdown.new` as fallback); each block is then compressed via `utils/content/compressor.py` → list of compressed text blocks
 3. **Note Taker**: LLM summarizes all blocks into dense notes
 4. **Summary Writer**: LLM extracts structured data (title, category, impact, etc.) → `WriterOutput`
 5. **Report Formatter**: Combines all outputs into markdown for display/email
@@ -135,14 +135,12 @@ Email dispatch is **decoupled from the pipeline** — it runs as a post-pipeline
 - `content_retrieval.py` uses the Tavily Extract SDK as its primary extraction method; `markdown.new` remains as a fallback for domains Tavily cannot reach
 - This replaced a pattern where some sites returned 403s via `markdown.new`, producing empty content and empty reports
 
-**Query-aware context compression (LongLLMLingua, local) per source**
-- Each fetched page is independently compressed by `utils/content/compressor.py` before entering pipeline state. Compression uses the `llmlingua` package running Microsoft's LongLLMLingua algorithm locally with a small causal LM (`Qwen/Qwen2.5-0.5B`) — ranks paragraph-sized segments by question-aware perplexity and drops the least relevant ones until the retention rate is met
-- Scoring is **query-aware**: the pipeline `topic` is passed as the `query` so segments are ranked for topical relevance, not just generic informativeness. When no topic is set, scoring falls back to unconditional likelihood
-- Kept segments are reordered (`reorder_context="sort"`) so the most relevant sit at the first and last positions — mitigates the "lost in the middle" effect on long-context LLMs
+**Per-source context compression (head truncation)**
+- Each fetched page is independently compressed by `utils/content/compressor.py` before entering pipeline state. Currently uses head truncation (retains first `COMPRESSION_RATE` fraction of characters)
 - Content retrieval caps URLs at 10 (down from 20) to prevent context overflow on content-rich cities like NYC
 - At `COMPRESSION_RATE=0.4` with the 10-URL cap, even large-city payloads stay safely under the 272K-token input limit — avoiding `OpenAIContextOverflowError`
 - Compression is applied per-source (not once on the concatenated batch) to keep the logic local to where data enters the pipeline
-- Short content (<`MIN_CHARS_TO_COMPRESS=1_000` chars) bypasses compression entirely. On compressor failure, the module falls back to head truncation so the pipeline never empties out
+- Short content (<`MIN_CHARS_TO_COMPRESS=1_000` chars) bypasses compression entirely
 
 **Direct SDK calls for external services**
 - Tavily search functions live in `utils/tools/tavily.py` as direct SDK calls; tool adapters in `utils/tools/` wrap them for LangGraph
@@ -261,7 +259,6 @@ docker run -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... nv-local
 
 ## Important Known Issues / WIP
 
-- First compression per process pays a one-time model-load cost (~1 GB `Qwen/Qwen2.5-0.5B` weights downloaded to the HF cache and loaded into RAM). Subsequent calls reuse the in-memory compressor. Parallel URL processing in `content_retrieval.py` overlaps scoring CPU work across URLs once the model is warm
 - Tavily Extract can fail on some domains (access restrictions, JS-heavy SPAs); `markdown.new` fallback handles most of these but is not 100% reliable
 - No persistent report storage by default (pipeline is stateless)
 - DeepL free tier has a 500K characters/month limit; high-volume multi-city runs may hit this cap
@@ -287,5 +284,5 @@ docker run -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... nv-local
 **Debugging a city pipeline failure**:
 1. Run single city: `python main.py <city_name>` (no -q flag to see output)
 2. Check error message in stdout/stderr
-3. Likely causes: missing env vars (`OPENAI_API_KEY`, `TAVILY_API_KEY`), Tavily Extract failure on a domain, agent hitting `recursion_limit=25` before completing, `llmlingua` model download failure on first run (check HF cache + network), SMTP pool exhaustion (check `utils/email_failures.json`)
+3. Likely causes: missing env vars (`OPENAI_API_KEY`, `TAVILY_API_KEY`), Tavily Extract failure on a domain, agent hitting `recursion_limit=25` before completing, SMTP pool exhaustion (check `utils/email_failures.json`)
 4. Look at per-city result dict in `runners/run_container_job.py:main()` for error field

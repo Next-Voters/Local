@@ -1,8 +1,7 @@
-"""Context compression via head truncation.
+"""Context compression via blended self-information token pruning.
 
-Retains the first N characters of each text block based on the configured
-compression rate. This is a simple, memory-safe approach that avoids loading
-a local scorer model (~1 GB) which causes OOM in memory-constrained containers.
+Delegates to the CompactPrompt-based pruner for intelligent token-level
+compression.  Falls back to head truncation if the pruner fails.
 """
 
 import logging
@@ -18,26 +17,27 @@ def compress_text(
     rate: float = COMPRESSION_RATE,
     query: Optional[str] = None,
 ) -> str:
-    """Compress *text* by retaining the first ``rate * len(text)`` characters.
+    """Compress *text* by pruning low-information tokens.
+
+    Uses blended self-information scoring (static + dynamic) with
+    SpaCy phrase grouping.  Falls back to head truncation on any failure.
 
     Args:
         text: Raw content to compress.
         rate: Target retention rate (``0.0`` = drop everything, ``1.0`` = keep all).
-        query: Unused. Reserved for future query-aware ranking.
+        query: Pipeline topic — boosts preservation of topic-relevant tokens.
 
     Returns:
-        The truncated text.
+        The compressed text.
     """
     if not text or len(text) < MIN_CHARS_TO_COMPRESS:
         return text
 
-    target_chars = max(MIN_CHARS_TO_COMPRESS, int(len(text) * rate))
-    compressed = text[:target_chars]
+    try:
+        from utils.content.pruner import prune_text
 
-    logger.info(
-        "Compressed: %d → %d chars (%.0f%% retained)",
-        len(text),
-        len(compressed),
-        100 * len(compressed) / max(len(text), 1),
-    )
-    return compressed
+        return prune_text(text, rate=rate, query=query)
+    except Exception as exc:
+        logger.warning("Pruner failed, falling back to head truncation: %s", exc)
+        target_chars = max(MIN_CHARS_TO_COMPRESS, int(len(text) * rate))
+        return text[:target_chars]
