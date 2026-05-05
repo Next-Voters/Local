@@ -56,7 +56,7 @@ def render_template(
     topic_sections_html: str | None = None,
     social_share_urls: dict[str, str] | None = None,
     table_of_contents_html: str | None = None,
-    greeting: str = "Good morning, New Voters.",
+    greeting: str = "Good morning, Next Voters.",
     intro: str = "",
 ) -> str:
     """Render the email template with HTML content and optional social share URLs.

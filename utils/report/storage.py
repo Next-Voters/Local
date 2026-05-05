@@ -6,6 +6,11 @@ from datetime import date
 
 from utils.supabase_client import get_supabase_client
 from utils.email.templates import convert_markdown_to_html, render_template
+from utils.email.components import (
+    build_topic_section_html,
+    build_table_of_contents_html,
+    get_topic_color,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +25,23 @@ def _slugify(text: str) -> str:
     return s.strip("-")
 
 
-def _render(md: str) -> str:
+def _render(md: str, city: str = "", topic: str = "") -> str:
     """Convert markdown to full branded HTML."""
-    return render_template(convert_markdown_to_html(md))
+    html_content = convert_markdown_to_html(md)
+    topic_sections_html = build_topic_section_html(
+        topic, html_content, topic_color=get_topic_color(topic)
+    )
+    toc_html = build_table_of_contents_html([topic]) if topic else ""
+    greeting = f"Here's what's happening in {city}." if city else "Good morning, Next Voters."
+    intro = f"Your latest {topic} report." if topic else ""
+    html = render_template(
+        html_content=html_content,
+        topic_sections_html=topic_sections_html,
+        table_of_contents_html=toc_html,
+        greeting=greeting,
+        intro=intro,
+    )
+    return html.replace("{{UNSUBSCRIBE_URL}}", "#")
 
 
 def upload_report(city: str, topic: str, html: str, lang: str = "en") -> str | None:
@@ -59,14 +78,14 @@ def upload_all(
 
     for city, topics in reports.items():
         for topic, md in topics.items():
-            if md and upload_report(city, topic, _render(md)):
+            if md and upload_report(city, topic, _render(md, city=city, topic=topic)):
                 uploaded += 1
 
     if translations:
         for city, topics in translations.items():
             for topic, langs in topics.items():
                 for lang_code, md in langs.items():
-                    if md and upload_report(city, topic, _render(md), lang_code.lower()):
+                    if md and upload_report(city, topic, _render(md, city=city, topic=topic), lang_code.lower()):
                         uploaded += 1
 
     logger.info(f"Storage upload complete: {uploaded} files uploaded")

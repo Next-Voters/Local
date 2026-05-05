@@ -213,7 +213,7 @@ def dispatch_emails_to_subscribers(
             topic_sections_html=sections_html,
             social_share_urls=social_share_urls,
             table_of_contents_html=toc_html,
-            greeting="Good morning, New Voters.",
+            greeting="Good morning, Next Voters.",
             intro=intro,
         )
 
