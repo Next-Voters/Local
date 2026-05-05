@@ -3,9 +3,8 @@ Per-subscriber content assembly for the email dispatcher.
 
 Two concerns live here:
 
-1. Selecting which topic reports — in which language — go to each subscriber,
-   given their topic preferences and the pool of city/topic reports and
-   translations.
+1. Selecting which topic reports go to each subscriber, given their topic
+   preferences and the pool of city/topic reports.
 2. Persisting delivery failures to the local JSON log after a dispatch run.
 
 Both are called from ``pipelines/node/email_dispatcher.py``. Keeping them
@@ -38,35 +37,6 @@ def build_subscriber_topic_reports(
         topic_report = city_reports.get(topic)
         if topic_report:
             reports.append((topic, topic_report))
-    return reports
-
-
-def build_translated_subscriber_topic_reports(
-    subscriber_topics: list[str],
-    city: str,
-    lang_code: str,
-    translations: dict[str, dict[str, dict[str, str]]],
-) -> list[tuple[str, str]]:
-    """Build list of (topic_name, translated_markdown) tuples for a subscriber's preferred language.
-
-    Args:
-        subscriber_topics: List of topic names the subscriber is interested in.
-        city: The subscriber's city.
-        lang_code: Target language code (e.g. "ES", "FR").
-        translations: Nested dict {city: {topic: {lang: translated_markdown}}}.
-
-    Returns:
-        List of (topic_name, translated_markdown) tuples, or empty list if no translations available.
-    """
-    city_translations = translations.get(city, {})
-    if not city_translations:
-        return []
-
-    reports = []
-    for topic in subscriber_topics:
-        translated = city_translations.get(topic, {}).get(lang_code, "")
-        if translated:
-            reports.append((topic, translated))
     return reports
 
 

@@ -12,7 +12,6 @@ supabase
 markdown
 openai
 tavily-python
-deepl
 pymupdf4llm
 spacy>=3.7
 wordfreq>=3.1

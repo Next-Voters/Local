@@ -4,8 +4,7 @@ Supabase client utilities for Next Voters Local pipeline.
 This module provides functions to query Supabase for:
 - Supported cities (from supported_cities table)
 - Supported topics (from supported_topics table)
-- Supported languages (from supported_languages table)
-- Subscribers with their city, topic, and language preferences (via subscription_topics junction table)
+- Subscribers with their city and topic preferences (via subscription_topics junction table)
 """
 
 import os
@@ -116,50 +115,15 @@ def get_supported_topics() -> list[str]:
         raise
 
 
-def get_supported_languages() -> list[str]:
-    """
-    Query the supported_languages table from Supabase.
-
-    Returns:
-        List of language names sorted alphabetically
-
-    Raises:
-        ValueError: If Supabase credentials are missing
-        Exception: If the database query fails
-    """
-    try:
-        client = get_supabase_client()
-
-        logger.info("Querying supported languages from Supabase...")
-        response = (
-            client.table("supported_languages")
-            .select("language")
-            .order("language")
-            .execute()
-        )
-
-        languages = [row["language"] for row in response.data]
-        logger.info(f"Successfully retrieved {len(languages)} supported languages: {languages}")
-
-        return languages
-
-    except ValueError as e:
-        logger.error(f"Supabase configuration error: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Failed to query supported languages from Supabase: {e}")
-        raise
-
-
 def get_all_subscribers_with_cities() -> list[dict[str, Any]]:
     """
     Query all subscribers with their city preferences from Supabase.
 
     Returns:
-        List of dicts with keys: "contact" (email), "city" (city name), "preferred_language" (language or None)
+        List of dicts with keys: "contact" (email), "city" (city name)
         Example: [
-            {"contact": "user@example.com", "city": "Toronto", "preferred_language": "English"},
-            {"contact": "another@example.com", "city": "New York City", "preferred_language": None},
+            {"contact": "user@example.com", "city": "Toronto"},
+            {"contact": "another@example.com", "city": "New York City"},
             ...
         ]
 
@@ -171,7 +135,7 @@ def get_all_subscribers_with_cities() -> list[dict[str, Any]]:
         client = get_supabase_client()
 
         logger.info("Querying subscribers from Supabase...")
-        response = client.table("subscriptions").select("contact, city, preferred_language").execute()
+        response = client.table("subscriptions").select("contact, city").execute()
 
         subscribers = response.data if response.data else []
         logger.info(f"Successfully retrieved {len(subscribers)} subscribers")
@@ -204,10 +168,10 @@ def get_all_subscribers_with_cities_and_topics() -> list[dict[str, Any]]:
     relationship between subscriptions and supported_topics.
 
     Returns:
-        List of dicts with keys: "contact" (email), "city" (city name), "topics" (list of topic names), "preferred_language" (language or None)
+        List of dicts with keys: "contact" (email), "city" (city name), "topics" (list of topic names)
         Example: [
-            {"contact": "user@example.com", "city": "Toronto", "topics": ["immigration", "economy"], "preferred_language": "Spanish"},
-            {"contact": "another@example.com", "city": "New York City", "topics": [], "preferred_language": None},
+            {"contact": "user@example.com", "city": "Toronto", "topics": ["immigration", "economy"]},
+            {"contact": "another@example.com", "city": "New York City", "topics": []},
             ...
         ]
 
@@ -221,7 +185,7 @@ def get_all_subscribers_with_cities_and_topics() -> list[dict[str, Any]]:
         logger.info("Querying subscribers with topics from Supabase...")
         response = (
             client.table("subscriptions")
-            .select("contact, city, preferred_language, subscription_topics(supported_topics(topic_name))")
+            .select("contact, city, subscription_topics(supported_topics(topic_name))")
             .execute()
         )
 
@@ -238,7 +202,6 @@ def get_all_subscribers_with_cities_and_topics() -> list[dict[str, Any]]:
                 "contact": row.get("contact"),
                 "city": row.get("city"),
                 "topics": topics,
-                "preferred_language": row.get("preferred_language"),
             })
 
         logger.info(f"Successfully retrieved {len(subscribers)} subscribers with topics")

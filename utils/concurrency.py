@@ -9,7 +9,7 @@ Provides a thin wrapper over ``ThreadPoolExecutor`` that:
 Two variants are exposed: a sync ``run_parallel`` built on threads (correct
 for I/O-bound work and GIL-releasing C extensions like BERT forward passes)
 and an async ``run_parallel_async`` built on ``asyncio.gather`` (for async
-native callers such as the DeepL SDK if invoked via a coroutine wrapper).
+native callers).
 """
 
 from __future__ import annotations
