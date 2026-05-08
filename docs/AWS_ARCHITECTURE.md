@@ -1,4 +1,4 @@
-# AWS System Design
+# AWS Architecture
 
 This document covers two concerns:
 
