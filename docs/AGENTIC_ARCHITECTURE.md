@@ -1,4 +1,4 @@
-# Architecture
+# Agent Architecture
 
 This repository implements a fixed, multi-step research pipeline that runs per city and produces a markdown report.
 
