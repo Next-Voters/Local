@@ -47,11 +47,6 @@ Code layout (high level):
 - Builds a markdown document from `legislation_summary`
 - Output: `markdown_report`
 
-6) `pipelines/node/email_sender.py` (optional)
-
-- If all required email env vars are present, loads subscribers from Supabase and sends the report via SMTP
-- Output: no change to the report; side-effect only
-
 ## Runtime Model
 
 - Concurrency: `runners/run_container_job.py` uses a `ThreadPoolExecutor` to run one city pipeline per thread (one thread per city; no shared state between cities).
