@@ -1,6 +1,6 @@
 # AWS System Design
 
-High-level architecture for the City Agent email pipeline. Reports are generated weekly per city, queued via SQS, and emailed to subscribers via SES.
+High-level architecture for the City Agent email pipeline. Reports are generated weekly per city, queued via Simple Queue Service, and emailed to subscribers via Simple Email Service.
 
 ```mermaid
 flowchart LR
@@ -9,22 +9,22 @@ flowchart LR
     DL["Dispatcher Lambda<br/>fan-out per city"]
 
     %% Compute layer
-    subgraph VPC["AWS VPC"]
-        ECS["ECS Fargate<br/>1 task per city"]
+    subgraph VPC["Amazon Virtual Private Cloud"]
+        ECS["Elastic Container Service Fargate<br/>1 task per city"]
     end
     EXT["External APIs<br/>LLM / scraping"]
 
     %% Messaging layer
-    SQS["SQS<br/>report-ready queue"]
-    DLQ[("SQS DLQ<br/>failed messages")]
+    SQS["Simple Queue Service<br/>report-ready queue"]
+    DLQ[("Simple Queue Service<br/>Dead Letter Queue")]
 
     %% Delivery layer
-    EML["Email Lambda<br/>concurrency = 10"]
-    SES["Amazon SES"]
+    EML["Email Lambda"]
+    SES["Simple Email Service"]
     USERS["User Inboxes"]
 
     %% Data layer
-    DB[("Supabase Postgres<br/>cities, subscribers,<br/>reports, bullets, send_log")]
+    DB[("Supabase")]
 
     %% Main flow
     EB --> DL
@@ -61,8 +61,8 @@ flowchart LR
 ## Flow Summary
 
 1. **EventBridge** triggers the **Dispatcher Lambda** on a weekly cron.
-2. **Dispatcher Lambda** reads the active cities from **Supabase** and fans out one **Fargate** task per city.
-3. Each **Fargate task** calls external APIs (LLM, scraping) to generate report content, writes the report and its bullets to **Supabase**, then enqueues a message to **SQS** containing `{city_id, report_id}` and exits.
-4. **SQS** holds the message. AWS-managed pollers invoke the **Email Lambda** with batches of messages, respecting the Lambda's reserved concurrency cap of 10 to protect SES rate limits.
-5. **Email Lambda** reads the report and bullets from Supabase, queries subscribers for the city, renders the email, sends via **SES**, and writes to `send_log` for idempotency.
-6. Failed messages are retried automatically by SQS. After N failures, they land in the **DLQ** for investigation.
+2. **Dispatcher Lambda** reads the active cities from **Supabase** and fans out one **Elastic Container Service Fargate** task per city.
+3. Each **Fargate task** calls external APIs (LLM, scraping) to generate report content, writes the report and its bullets to **Supabase**, then enqueues a message to **Simple Queue Service** containing `{city_id, report_id}` and exits.
+4. **Simple Queue Service** holds the message. AWS-managed pollers invoke the **Email Lambda** with batches of messages. Lambda reserved concurrency caps parallel executions to protect Simple Email Service rate limits.
+5. **Email Lambda** reads the report and bullets from Supabase, queries subscribers for the city, renders the email, sends via **Simple Email Service**, and writes to `send_log` for idempotency.
+6. Failed messages are retried automatically by Simple Queue Service. After N failures, they land in the **Dead Letter Queue** for investigation.
