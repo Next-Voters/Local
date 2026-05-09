@@ -46,11 +46,12 @@ def run_container_mode(city: str) -> int:
         try:
             logger.info(f"Starting pipeline: {label}")
             result = run_pipeline(city, topic)
-            if not save_report(city, topic, result):
+            report_id = save_report(city, topic, result)
+            if report_id is None:
                 logger.error(f"Failed to save report: {label}")
                 failures.append(label)
             else:
-                logger.info(f"Completed: {label}")
+                logger.info(f"Completed: {label} (report_id={report_id})")
         except Exception as e:
             logger.error(f"Failed: {label} — {e}")
             failures.append(label)

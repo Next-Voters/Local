@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Next Voters Local** is a multi-agent AI research pipeline that discovers, researches, and summarizes municipal legislation across cities. It makes government information accessible to communities that lack time or resources to track local officials.
 
-The system runs as a standalone CLI tool or Docker container, orchestrated by LangGraph-based agents. Each execution produces a structured markdown report for a given city.
+The system runs as a standalone CLI tool or Docker container, orchestrated by LangGraph-based agents. Each execution researches legislation for a given city and stores structured results (headers + bullets) in Supabase.
 
 ## Development Setup
 
@@ -40,12 +40,6 @@ python main.py <city_name>
 # Run pipeline for a city scoped to a specific topic
 python main.py <city_name> -t <topic_name>
 
-# Run pipeline with custom output file
-python main.py <city_name> -o report.md
-
-# Suppress stdout report
-python main.py <city_name> -q
-
 # Container mode (runs all topics for a city, saves to DB)
 NV_CITY=<city_name> python main.py
 ```
@@ -66,7 +60,6 @@ The pipeline is a **fixed, deterministic sequence** of nodes composed via LangGr
 
 ```
 legislation_finder → content_retrieval → note_taker → summary_writer
-  → report_formatter
 ```
 
 **Key design**: Each node is a thin `RunnableSequence` that transforms pipeline state (`ChainData` TypedDict).
@@ -91,7 +84,6 @@ Each city runs as an independent **ECS Fargate task**:
 - `content_retrieval.py`: Fetches page content via Tavily Extract (with `markdown.new` fallback)
 - `note_taker.py`: Compresses raw content into dense notes (single LLM call)
 - `summary_writer.py`: Structured extraction of key legislative details (schema: `WriterOutput`)
-- `report_formatter.py`: Builds final markdown document
 
 **Utilities** (`utils/`):
 - `llm/`: LLM factory (`get_llm()`, `get_structured_llm()`) with default config (gpt-5, temp=0, max_tokens=16384)
@@ -99,16 +91,13 @@ Each city runs as an independent **ECS Fargate task**:
   - `state.py`: `ChainData` TypedDict (pipeline state contract)
   - `pydantic.py`: Structured output schemas (e.g., `WriterOutput`)
 - `report/`:
-  - `storage.py`: Saves structured report data (legislation items as JSONB) to the Supabase `reports` table via upsert. Single function: `save_report(city, topic_name, result)`
+  - `storage.py`: Saves pipeline output to Supabase via a two-table upsert: parent `reports` row (per city+date) and child `report_headers` rows (per legislation item with topic, header, and bullets). Returns the `report_id` on success. Single function: `save_report(city, topic_name, result) → int | None`
 - `content/`: Content processing and evaluation utilities
   - `compressor.py`: Context compression via `compress_text(text, rate, query)`. Retains the first `rate * len(text)` characters (head truncation). The `query` parameter is reserved for future query-aware pruning. Short content (<`MIN_CHARS_TO_COMPRESS` chars) bypasses compression.
   - `pdf_extractor.py`: PDF detection (HEAD request + suffix check) and PDF-to-Markdown conversion via pymupdf4llm.
   - `source_reliability.py`: Domain-level source reliability scoring and filtering — classifies URLs into government, legislative, news, other, or blocked tiers.
 - `tools/`: Agent tool adapters with LangChain `@tool` decorators, re-exported via `__init__.py` (e.g., `reflection.py`, `web_search.py`). Contains a `utils/` subdirectory for service modules (`tavily.py`, `extract.py`). Google Calendar integration uses a remote MCP server (`https://gcal.mintmcp.com/mcp`) loaded via `langchain-mcp-adapters` in `agents/legislation_finder.py`.
 - `supabase_client.py`: Loads supported cities and topics from Supabase
-
-**Templates** (`templates/`):
-- `template_legacy.html`: Legacy HTML email template (retained for reference, pending removal)
 
 **Configuration** (`config/`):
 - `system_prompts/`: Prompt templates for agents and nodes
@@ -119,9 +108,8 @@ Each city runs as an independent **ECS Fargate task**:
 1. **Legislation Finder**: Agent uses Tavily search with prompt-based source filtering → outputs list of URLs
 2. **Content Retrieval**: Fetches each URL's text via Tavily Extract (with `markdown.new` as fallback); each block is then compressed via `utils/content/compressor.py` → list of compressed text blocks
 3. **Note Taker**: LLM summarizes all blocks into dense notes
-4. **Summary Writer**: LLM extracts structured data (title, category, impact, etc.) → `WriterOutput`
-5. **Report Formatter**: Combines all outputs into markdown for display
-6. **Report Storage** (container mode): Structured items upserted to Supabase `reports` table
+4. **Summary Writer**: LLM extracts structured data (header + bullets per item) → `WriterOutput`
+5. **Report Storage** (container mode): Upserts parent `reports` row (city+date), then `report_headers` rows (one per legislation item with topic, header, bullets). Returns `report_id`.
 
 ### Key Design Decisions
 
@@ -204,7 +192,7 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 **Error Handling**
 - Classifier output parse failures → reject all sources (safe fallback)
 - Per-topic failures are logged; container continues remaining topics then exits 1
-- `save_report()` returning False is treated as a failure (exit 1)
+- `save_report()` returning `None` is treated as a failure (exit 1)
 
 ## Code Conventions
 
@@ -254,7 +242,7 @@ docker run -e NV_CITY=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUP
 2. Note: All LLM factory functions reference this dict, so one change affects all calls
 
 **Debugging a city pipeline failure**:
-1. Run single city: `python main.py <city_name>` (no -q flag to see output)
+1. Run single city: `python main.py <city_name>`
 2. Check error message in stdout/stderr
 3. Likely causes: missing env vars (`OPENAI_API_KEY`, `TAVILY_API_KEY`), Tavily Extract failure on a domain, agent hitting `recursion_limit=40` before completing
 4. Container mode: check ECS task logs in CloudWatch, verify `NV_CITY` is in `supported_cities` table

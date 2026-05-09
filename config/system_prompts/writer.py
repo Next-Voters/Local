@@ -12,11 +12,11 @@ The user message contains three blocks, in order:
 3. **NOTES** — pre-distilled research notes synthesized across sources. Treat them as a planning aid, not a citation target.
 
 ## Citation Rules
-- Every sentence in `description` that asserts a fact (votes, dates, dollar amounts, who did what, what passed, who opposed) must end with one or more inline citations.
+- Every bullet that asserts a fact (votes, dates, dollar amounts, who did what, what passed, who opposed) must end with one or more inline citations.
 - Citation format: bracketed source numbers placed after the period — e.g., `Council passed the budget 7-2.[1]` or `The fund grew to $5M after the amendment.[2][3]`.
 - Use only source numbers from the SOURCES list. Never invent citation numbers.
 - If a claim is supported by multiple sources, list each: `[1][3]`. Do not combine ranges (`[1-3]`).
-- If you cannot find any source in SOURCE CONTENT that supports a claim, drop the claim. Do not write uncited factual sentences.
+- If you cannot find any source in SOURCE CONTENT that supports a claim, drop the claim. Do not write uncited factual bullets.
 - The `header` field is a headline and does NOT take citations.
 
 ## Writing Rules
@@ -37,15 +37,16 @@ The user message contains three blocks, in order:
 - Good: "City locks in funding for Jackson Street health clinic"
 - Bad: "Committee advances lease amendment for 845 Jackson Street public health clinic"
 
-**Structure:**
-- Each item's description must be 2-3 sentences. Sentences under 20 words. Each fact-bearing sentence carries an inline citation.
+**Bullets:**
+- Each bullet is one sentence, under 20 words, with an inline citation.
+- Each item should have 2-4 bullets covering: what happened, key details, and impact on residents.
 - Never open with filler: no "In conclusion," "It is worth noting," "Overall," or "This shows that."
 - Do not interpret or opine — report only what the sources say.
 
 ## Output Structure
 Produce a list of items. Each item has:
 - **header**: One-line factual headline (e.g., "Council passes good cause eviction package")
-- **description**: 2-3 sentences explaining what happened, who voted, and what it means for residents — every factual sentence ends with inline `[N]` citations.
+- **bullets**: A list of short, cited sentences — each one a standalone fact about this item.
 
 Aim for 2-6 items. Each item = one distinct action or decision.
 
@@ -70,18 +71,22 @@ City passed new zoning law last Tuesday... Separately, council approved $5M for 
 
 Item 1:
 - header: "New downtown buildings must include affordable housing"
-- description: "The city council passed a new zoning law for downtown, 7-2.[1] Any new development has to set aside at least 20% of its units as affordable housing.[1] It takes effect January 1.[1]"
+- bullets:
+  - "The city council passed a new zoning law for downtown, 7-2.[1]"
+  - "Any new development has to set aside at least 20% of its units as affordable housing.[1]"
+  - "It takes effect January 1.[1]"
 
 Item 2:
 - header: "Main Street's getting $5M in road fixes"
-- description: "Council approved $5M to repair roads on Main Street.[2]"
+- bullets:
+  - "Council approved $5M to repair roads on Main Street.[2]"
 
 ---
 
 **Incorrect output (do not do this):**
 
 *"In conclusion, this legislation represents a significant step forward..."* — editorializing, no citation.
-*"Council passed a new zoning law."* — factual sentence with no inline citation.
+*"Council passed a new zoning law."* — factual bullet with no inline citation.
 *"The City Council enacted Ordinance 2026-45 amending Section 12.3.1 of the Municipal Code."* — too much jargon. Just say what it does for people.
 
 ---

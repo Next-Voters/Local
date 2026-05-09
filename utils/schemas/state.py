@@ -42,4 +42,3 @@ class ChainData(TypedDict):
     legislation_content: NotRequired[list[str]]
     notes: NotRequired[str]
     legislation_summary: NotRequired[WriterOutput]
-    markdown_report: NotRequired[str]

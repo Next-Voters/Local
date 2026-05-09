@@ -56,11 +56,21 @@ Composite primary key `(subscription_id, topic_id)`. Implements the many-to-many
 | --- | --- | --- |
 | `id` | `bigint` | Identity primary key (ALWAYS GENERATED). |
 | `city` | `text` | Foreign key → `supported_cities.city`. |
-| `topic_id` | `integer` | Foreign key → `supported_topics.topic_id`. |
 | `report_date` | `date` | Date the report covers; defaults to `CURRENT_DATE`. |
-| `items` | `jsonb` | Array of legislation items, each `{"header": "...", "description": "..."}`. Defaults to `'[]'::jsonb`. |
 
-Each row stores one pipeline run's output for a city+topic+date. A unique constraint on `(city, topic_id, report_date)` enforces one report per combination per day; re-runs upsert over the existing row.
+Parent record for a city's daily pipeline run. A unique constraint on `(city, report_date)` enforces one report per city per day; re-runs upsert over the existing row. Individual legislation items are stored in `report_headers`.
+
+### report_headers
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `bigint` | Identity primary key (ALWAYS GENERATED). |
+| `report_id` | `bigint` | Foreign key → `reports.id`. ON DELETE CASCADE. |
+| `topic_id` | `integer` | Foreign key → `supported_topics.topic_id`. ON DELETE CASCADE. |
+| `header` | `text` | Legislation item headline. |
+| `bullets` | `jsonb` | Array of bullet point strings. Defaults to `'[]'::jsonb`. |
+
+Each row stores one legislation header with its bullet points. A unique constraint on `(report_id, topic_id, header)` prevents duplicate headers for the same topic within a report; re-runs upsert over existing rows. Indexed on `report_id` for join performance.
 
 ---
 
@@ -157,8 +167,9 @@ Standard migration tracking table used by the migration framework.
 erDiagram
     supported_cities ||--o{ subscriptions : "city"
     supported_cities ||--o{ reports : "city"
+    reports ||--o{ report_headers : "report_id"
     supported_topics ||--o{ subscription_topics : "topic_id"
-    supported_topics ||--o{ reports : "topic_id"
+    supported_topics ||--o{ report_headers : "topic_id"
     subscriptions ||--o{ subscription_topics : "contact"
     region_requests ||--o{ region_votes : "request_id"
     assistant ||--o{ assistant_versions : "assistant_id"
@@ -169,7 +180,8 @@ erDiagram
 
 Key relationships:
 - `supported_cities` supplies city references for `subscriptions` and `reports` (one-to-many).
-- `supported_topics` is referenced by `subscription_topics` (subscriber preferences) and `reports` (pipeline output).
+- `reports` → `report_headers` (one-to-many; each report has multiple headers across topics).
+- `supported_topics` is referenced by `subscription_topics` (subscriber preferences) and `report_headers` (pipeline output).
 - `subscriptions` ↔ `supported_topics` linked through `subscription_topics` (many-to-many).
 - `region_requests` ↔ `region_votes` (one-to-many; each request collects votes).
 - LangGraph tables: `assistant` → `assistant_versions` and `cron`; `thread` → `thread_ttl` and `cron`.
@@ -187,7 +199,7 @@ Pipeline tables are queried via two modules:
 
 **`utils/report/storage.py`**:
 - `_get_topic_id(topic_name)` → `int | None` — resolves a topic name to its integer ID via `supported_topics` (cached)
-- `save_report(city, topic_name, result)` → `bool` — extracts structured items from a pipeline result dict and upserts to the `reports` table on conflict `(city, topic_id, report_date)`
+- `save_report(city, topic_name, result)` → `int | None` — upserts a `reports` row on `(city, report_date)`, then upserts `report_headers` rows per legislation item on `(report_id, topic_id, header)`. Returns the `report_id` on success, `None` on failure.
 
 ---
 

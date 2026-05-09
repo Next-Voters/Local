@@ -42,14 +42,14 @@ class TestSummaryWriter:
             items=[
                 LegislationItem(
                     header="Test headline",
-                    description="Test description of legislation.",
+                    bullets=["Test description of legislation."],
                 )
             ]
         )
 
         assert len(valid_output.items) == 1
         assert valid_output.items[0].header == "Test headline"
-        assert valid_output.items[0].description == "Test description of legislation."
+        assert valid_output.items[0].bullets == ["Test description of legislation."]
 
     def test_writer_output_optional_fields(self):
         """Test WriterOutput handles empty items list correctly."""
@@ -68,11 +68,11 @@ class TestSummaryWriter:
             items=[
                 LegislationItem(
                     header="Climate Action Initiative passed 38-7",
-                    description="City Council passed Bill 1 establishing a 65% GHG reduction target by 2030.",
+                    bullets=["City Council passed Bill 1 establishing a 65% GHG reduction target by 2030."],
                 ),
                 LegislationItem(
                     header="Affordable Housing Strategy requires 20% affordable units",
-                    description="Bill 2 passed 42-3, requiring 20% affordable units in large developments.",
+                    bullets=["Bill 2 passed 42-3, requiring 20% affordable units in large developments."],
                 ),
             ]
         )
@@ -88,7 +88,7 @@ class TestSummaryWriter:
         assert summary is not None
         assert len(summary.items) == 2
         assert summary.items[0].header is not None
-        assert summary.items[0].description is not None
+        assert summary.items[0].bullets is not None
 
     @patch("pipelines.node.summary_writer._get_model")
     def test_summary_writer_handles_no_content(
@@ -239,7 +239,7 @@ class TestSummaryWriterEdgeCases:
             items=[
                 LegislationItem(
                     header=f"Point {i} summary",
-                    description=f"Details about point {i}.",
+                    bullets=[f"Details about point {i}."],
                 )
                 for i in range(5)
             ]
@@ -260,7 +260,10 @@ class TestSummaryWriterEdgeCases:
             items=[
                 LegislationItem(
                     header="Cafe and Restaurant Regulations",
-                    description="New regulations for cafe outdoor seating in Toronto. The rules cover patio permits and noise limits.",
+                    bullets=[
+                        "New regulations for cafe outdoor seating in Toronto.",
+                        "The rules cover patio permits and noise limits.",
+                    ],
                 )
             ]
         )

@@ -144,40 +144,27 @@ def sample_writer_output() -> dict[str, Any]:
         "items": [
             {
                 "header": "Climate Action Initiative passed 38-7",
-                "description": "City Council passed Bill 1 establishing a 65% GHG reduction target by 2030. The bill mandates building retrofits and allocates $50M for renewable energy investment.",
+                "bullets": [
+                    "City Council passed Bill 1 establishing a 65% GHG reduction target by 2030.",
+                    "The bill mandates building retrofits and allocates $50M for renewable energy investment.",
+                ],
             },
             {
                 "header": "Affordable Housing Strategy requires 20% affordable units",
-                "description": "Bill 2 passed 42-3, requiring 20% affordable units in large developments. It establishes a $100M housing trust and implements income-based rent control.",
+                "bullets": [
+                    "Bill 2 passed 42-3, requiring 20% affordable units in large developments.",
+                    "It establishes a $100M housing trust and implements income-based rent control.",
+                ],
             },
             {
                 "header": "TTC approves Ontario Line expansion plan",
-                "description": "The Toronto Transit Commission approved the Ontario Line expansion plan. The project will receive federal and provincial funding.",
+                "bullets": [
+                    "The Toronto Transit Commission approved the Ontario Line expansion plan.",
+                    "The project will receive federal and provincial funding.",
+                ],
             },
         ],
     }
-
-
-@pytest.fixture
-def sample_markdown_report() -> str:
-    """Sample markdown report output."""
-    return """## ECONOMY & HOUSING
-
-**Climate Action Initiative passed 38-7**
-Toronto
-
-City Council passed Bill 1 establishing a 65% GHG reduction target by 2030. The bill mandates building retrofits and allocates $50M for renewable energy investment.
-
-**Affordable Housing Strategy requires 20% affordable units**
-Toronto
-
-Bill 2 passed 42-3, requiring 20% affordable units in large developments. It establishes a $100M housing trust and implements income-based rent control.
-
-**TTC approves Ontario Line expansion plan**
-Toronto
-
-The Toronto Transit Commission approved the Ontario Line expansion plan. The project will receive federal and provincial funding.
-"""
 
 
 @pytest.fixture
@@ -195,7 +182,7 @@ def mock_structured_llm_response() -> dict[str, Any]:
         "items": [
             {
                 "header": "Toronto City Council Legislation Update",
-                "description": "Summary of recent legislation. Details of key decisions.",
+                "bullets": ["Summary of recent legislation.", "Details of key decisions."],
             },
         ],
     }
@@ -232,7 +219,7 @@ def mock_chain_data() -> dict[str, Any]:
         "legislation_sources": "Sample legislation sources",
         "notes": sample_legislation_notes(),
         "legislation_summary": None,
-        "markdown_report": "",
+        "legislation_summary": None,
     }
 
 

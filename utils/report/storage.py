@@ -1,4 +1,4 @@
-"""Save pipeline reports to the Supabase reports table."""
+"""Save pipeline reports to the Supabase reports and report_headers tables."""
 
 import logging
 from datetime import date
@@ -37,8 +37,11 @@ def _get_topic_id(topic_name: str) -> int | None:
         return None
 
 
-def save_report(city: str, topic_name: str, result: dict[str, Any]) -> bool:
-    """Extract structured items from a pipeline result and upsert to the reports table.
+def save_report(city: str, topic_name: str, result: dict[str, Any]) -> int | None:
+    """Save a pipeline result to the reports and report_headers tables.
+
+    Upserts a parent report row for (city, today), then upserts one
+    report_headers row per legislation item with the topic and bullets.
 
     Args:
         city: City name (FK to supported_cities).
@@ -46,38 +49,56 @@ def save_report(city: str, topic_name: str, result: dict[str, Any]) -> bool:
         result: Pipeline result dict containing 'legislation_summary' (WriterOutput).
 
     Returns:
-        True on success, False on failure.
+        The report ID (bigint PK) on success, or None on failure.
     """
     summary = result.get("legislation_summary")
     if summary is None:
-        return False
+        return None
 
-    items = [
-        {"header": item.header, "description": item.description}
-        for item in summary.items
-    ]
-
-    if not items:
+    if not summary.items:
         logger.warning(f"No items to save for {city}/{topic_name}, skipping upsert")
-        return False
+        return None
 
     topic_id = _get_topic_id(topic_name)
     if topic_id is None:
-        return False
+        return None
 
     try:
         client = get_supabase_client()
-        client.table("reports").upsert(
+
+        # Upsert parent report row: one per city per day
+        report_response = client.table("reports").upsert(
             {
                 "city": city,
-                "topic_id": topic_id,
                 "report_date": date.today().isoformat(),
-                "items": items,
             },
-            on_conflict="city,topic_id,report_date",
+            on_conflict="city,report_date",
         ).execute()
-        logger.info(f"Saved report: {city}/{topic_name}")
-        return True
+
+        report_id = report_response.data[0]["id"]
+
+        # Upsert one report_headers row per legislation item
+        headers = [
+            {
+                "report_id": report_id,
+                "topic_id": topic_id,
+                "header": item.header,
+                "bullets": item.bullets,
+            }
+            for item in summary.items
+        ]
+
+        client.table("report_headers").upsert(
+            headers,
+            on_conflict="report_id,topic_id,header",
+        ).execute()
+
+        logger.info(
+            f"Saved report: {city}/{topic_name} "
+            f"(report_id={report_id}, headers={len(headers)})"
+        )
+        return report_id
+
     except Exception as e:
         logger.error(f"Failed to save report {city}/{topic_name}: {e}")
-        return False
+        return None

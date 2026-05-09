@@ -50,13 +50,13 @@ class SourceAssessment(BaseModel):
 
 
 class LegislationItem(BaseModel):
-    """A single legislation action with headline and description."""
+    """A single legislation action with headline and bullet points."""
 
     header: str = Field(
         description="Short factual headline, e.g. 'Council passes good cause eviction package'"
     )
-    description: str = Field(
-        description="2-3 sentence plain-language description of what happened"
+    bullets: list[str] = Field(
+        description="List of cited bullet points explaining what happened"
     )
 
 

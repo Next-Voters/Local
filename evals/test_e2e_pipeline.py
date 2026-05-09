@@ -1,7 +1,7 @@
 """End-to-end integration tests for NV Local pipeline.
 
 Tests the complete pipeline from legislation discovery
-to final markdown report generation.
+to final structured summary generation.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from deepeval.test_case import LLMTestCase
 from evals.metrics import (
     LegislationAccuracyMetric,
     SummaryQualityMetric,
-    ReportFormattingMetric,
     NoHallucinationMetric,
 )
 
@@ -29,29 +28,36 @@ class TestEndToEndPipeline:
         self.city = mock_city
 
     @patch("pipelines.nv_local.chain.invoke")
-    def test_pipeline_produces_markdown_report(
-        self, mock_invoke: MagicMock, sample_markdown_report: str
-    ):
-        """Test that full pipeline produces markdown report."""
+    def test_pipeline_produces_summary(self, mock_invoke: MagicMock):
+        """Test that full pipeline produces a legislation summary."""
+        from utils.schemas import WriterOutput, LegislationItem
+
         mock_invoke.return_value = {
             "city": self.city,
-            "markdown_report": sample_markdown_report,
+            "legislation_summary": WriterOutput(
+                items=[
+                    LegislationItem(
+                        header="Test headline",
+                        bullets=["Test bullet point."],
+                    )
+                ]
+            ),
         }
 
         from pipelines.nv_local import run_pipeline
 
         result = run_pipeline(self.city)
 
-        assert "markdown_report" in result
-        assert isinstance(result["markdown_report"], str)
-        assert len(result["markdown_report"]) > 0
+        assert "legislation_summary" in result
+        assert result["legislation_summary"] is not None
+        assert len(result["legislation_summary"].items) > 0
 
     @patch("pipelines.nv_local.chain.invoke")
     def test_pipeline_handles_city(self, mock_invoke: MagicMock):
         """Test pipeline processes city parameter correctly."""
         mock_invoke.return_value = {
             "city": self.city,
-            "markdown_report": "# Report",
+            "legislation_summary": None,
         }
 
         from pipelines.nv_local import run_pipeline
@@ -133,31 +139,6 @@ class TestPipelineComponents:
 
         assert "legislation_summary" in result
 
-    @patch("pipelines.node.report_formatter.report_formatter_chain.invoke")
-    def test_report_formatter_chain(
-        self, mock_invoke: MagicMock, sample_markdown_report: str
-    ):
-        """Test report formatter chain integration."""
-        mock_invoke.return_value = {
-            "city": "Toronto",
-            "markdown_report": sample_markdown_report,
-        }
-
-        from pipelines.node.report_formatter import report_formatter_chain
-        from utils.schemas import WriterOutput, LegislationItem
-
-        result = report_formatter_chain.invoke(
-            {
-                "city": "Toronto",
-                "topic": "Economy",
-                "legislation_summary": WriterOutput(
-                    items=[LegislationItem(header="Test", description="Test description.")]
-                ),
-            }
-        )
-
-        assert "markdown_report" in result
-
 
 class TestPipelineErrorHandling:
     """Test pipeline error handling."""
@@ -171,7 +152,7 @@ class TestPipelineErrorHandling:
 
         result = run_pipeline("Toronto")
 
-        assert "error" in result or "markdown_report" in result
+        assert "error" in result or "legislation_summary" in result
 
     @patch("pipelines.node.summary_writer.summary_writer_chain.invoke")
     def test_pipeline_handles_summary_writer_error(self, mock_invoke: MagicMock):
@@ -182,16 +163,7 @@ class TestPipelineErrorHandling:
 
         result = run_pipeline("Toronto")
 
-        assert "error" in result or "markdown_report" in result
-
-
-class TestPipelineOutput:
-    """Test pipeline output quality."""
-
-    def test_report_contains_expected_structure(self, sample_markdown_report: str):
-        """Test that report has expected markdown structure."""
-        assert "## " in sample_markdown_report
-        assert "**" in sample_markdown_report
+        assert "error" in result or "legislation_summary" in result
 
 
 class TestPipelineIntegration:
@@ -221,28 +193,6 @@ class TestPipelineIntegration:
         result = run_pipeline("Toronto")
 
         assert result is not None
-        assert "markdown_report" in result or "error" in result
-
-    def test_pipeline_output_quality_metrics(self, sample_markdown_report: str):
-        """Test report quality using evaluation metrics."""
-        test_case = LLMTestCase(
-            input="Full pipeline for Toronto legislation",
-            actual_output=sample_markdown_report,
-            retrieval_context="""
-            Source: Toronto City Council
-            Bill 1-2024: Climate Action Initiative (65% GHG reduction)
-            Bill 2-2024: Affordable Housing Strategy (20% affordable units)
-            """,
-        )
-
-        metrics = [
-            ReportFormattingMetric,
-            NoHallucinationMetric,
-        ]
-
-        for metric in metrics:
-            metric.measure(test_case)
-            assert metric.score >= 0
 
 
 class TestSupportedCities:
@@ -252,14 +202,13 @@ class TestSupportedCities:
     @patch("pipelines.nv_local.chain.invoke")
     def test_supported_cities(self, mock_invoke: MagicMock, city: str):
         """Test pipeline with each supported city."""
-        # Cities are now queried from Supabase, but we test with hardcoded values
         supported_cities = ["Toronto", "New York City", "San Diego"]
 
         assert city in supported_cities
 
         mock_invoke.return_value = {
             "city": city,
-            "markdown_report": f"# {city} Report",
+            "legislation_summary": None,
         }
 
         from pipelines.nv_local import run_pipeline
@@ -280,15 +229,7 @@ def run_e2e_evaluation() -> dict[str, Any]:
     test_cases = [
         LLMTestCase(
             input="Run full NV Local pipeline for Toronto",
-            actual_output="""# Toronto City Council Legislation Update - January 2024
-
-## Summary
-City Council passed significant climate action and housing legislation including a 65% GHG reduction target and mandatory affordable housing requirements.
-
-## Full Report
-- **Climate Action Initiative (Bill 1)**: Passed 38-7, establishes 65% GHG reduction target by 2030
-- **Affordable Housing Strategy (Bill 2)**: Passed 42-3, requires 20% affordable units
-""",
+            actual_output="Climate Action Initiative passed 38-7. 65% GHG reduction by 2030. Affordable Housing Strategy requires 20% affordable units.",
             retrieval_context="""
             Source: Toronto City Council
             Bill 1-2024: Climate Action Initiative
@@ -300,29 +241,11 @@ City Council passed significant climate action and housing legislation including
             - Passed 42-3
             """,
         ),
-        LLMTestCase(
-            input="Run full pipeline for NYC",
-            actual_output="""# NYC City Council Update
-
-## Summary
-City Council passed Green New Deal legislation.
-
-## Full Report
-- Intro 1234: Climate legislation passed
-- Housing preservation laws updated
-""",
-            retrieval_context="""
-            Source: NYC City Council
-            Intro 1234: Green New Deal for NYC
-            Housing Preservation Plan
-            """,
-        ),
     ]
 
     metrics = [
         LegislationAccuracyMetric,
         SummaryQualityMetric,
-        ReportFormattingMetric,
         NoHallucinationMetric,
     ]
 

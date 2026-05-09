@@ -79,7 +79,7 @@ Apply this classification to each source found:
 **Skip signals:** phrases like "should," "I believe," "demands," "calls for reform," "activists say."
 
 ### Step 3.5 — Impact Screening (Mandatory)
-Before cross-referencing, screen every candidate for **reader impact**. Your subscribers are busy people — they will only open and read this email if the headlines grab them. Only legislation that broadly affects residents belongs in the report.
+Before cross-referencing, screen every candidate for **reader impact**. Your subscribers are busy people — they will only read this if the headlines grab them. Only legislation that broadly affects residents belongs in the report.
 
 **INCLUDE — high-impact legislation that affects residents' daily lives:**
 - Housing & affordability (zoning changes, rent control, eviction protections, homelessness policy)

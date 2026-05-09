@@ -12,7 +12,6 @@ from pipelines.node.content_retrieval import (
 )
 from pipelines.node.note_taker import research_note_taker, note_taker_chain
 from pipelines.node.summary_writer import research_summary_writer, summary_writer_chain
-from pipelines.node.report_formatter import report_formatter, report_formatter_chain
 
 __all__ = [
     "chain",
@@ -21,10 +20,8 @@ __all__ = [
     "run_content_retrieval",
     "research_note_taker",
     "research_summary_writer",
-    "report_formatter",
     "legislation_finder_chain",
     "content_retrieval_chain",
     "note_taker_chain",
     "summary_writer_chain",
-    "report_formatter_chain",
 ]
