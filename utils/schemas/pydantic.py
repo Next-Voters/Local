@@ -35,18 +35,6 @@ class SourceAssessment(BaseModel):
         default=False,
         description="Whether the source meets the pipeline's reliability bar",
     )
-    source_type: Optional[str] = Field(
-        default=None,
-        description="Short classification: government, legislative, news, other, blocked",
-    )
-    headline: Optional[str] = Field(
-        default=None,
-        description="One-line summary of what the source covers, if determinable",
-    )
-    rationale: Optional[str] = Field(
-        default=None,
-        description="Short reason for the accept/reject decision",
-    )
 
 
 class LegislationItem(BaseModel):

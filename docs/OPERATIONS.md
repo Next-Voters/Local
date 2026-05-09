@@ -21,6 +21,8 @@ Core runtime secrets:
 Container-specific:
 
 - `NV_CITY`: City to run pipeline for (set by Dispatcher Lambda)
+- `SQS_QUEUE_URL`: SQS queue URL for report-ready messages (triggers Email Lambda)
+- `SQS_PIPELINE_DLQ_URL`: SQS dead letter queue URL for pipeline failure metadata
 
 Operational guidance:
 
@@ -49,6 +51,8 @@ Required GitHub configuration:
 - Dispatcher Lambda launches one ECS Fargate task per supported city
 - Each Fargate task runs `main.py` with `NV_CITY` env var set
 - Reports are saved to the Supabase `reports` table
+- After all topics complete, a `{city, report_id}` message is enqueued to SQS, triggering the Email Lambda
+- If any topic or the SQS enqueue fails, failure metadata is sent to the pipeline DLQ
 - Logs are emitted to stdout/stderr and collected by CloudWatch
 
 ## Logging And Monitoring
@@ -83,3 +87,21 @@ Symptoms: empty legislation sources or empty content blocks.
 1) Verify `OPENAI_API_KEY` and account quota.
 2) The agent `recursion_limit` (configured in `config/constants.py`) bounds tool-call loops to prevent runaway API usage.
 3) If rate-limited, reduce the number of cities running concurrently by adjusting the Dispatcher Lambda fan-out.
+
+### Pipeline DLQ Messages
+
+When a Fargate task exits 1, it sends failure metadata to the pipeline dead letter queue (`SQS_PIPELINE_DLQ_URL`). This is separate from the Email Lambda's consumption DLQ.
+
+Message format:
+```json
+{
+  "city": "toronto",
+  "failures": ["toronto (housing)", "toronto (SQS enqueue)"],
+  "report_id": 42,
+  "timestamp": "2026-05-09T12:00:00+00:00"
+}
+```
+
+- `failures`: labels of failed topics or steps
+- `report_id`: non-null if at least one topic saved (report exists in DB but may be incomplete); null if all topics failed
+- To investigate: cross-reference `timestamp` with CloudWatch logs for the ECS task, then check `report_headers` in Supabase for partial data

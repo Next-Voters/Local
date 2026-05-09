@@ -64,10 +64,6 @@ STATIC_OOV_SCORE: float = 22.0
 # Agent context limits
 # ---------------------------------------------------------------------------
 
-# Messages kept per agent _call_model invocation.
-# The reflection tool maintains a rolling summary so older messages are safe to drop.
-MAX_AGENT_MESSAGES: int = 30
-
 # Reflection entries kept in the agent system prompt.
 MAX_REFLECTION_ENTRIES: int = 5
 
@@ -79,10 +75,3 @@ MAX_REFLECTION_ENTRIES: int = 5
 # Prevents unbounded tool-call loops in multi-city runs.
 AGENT_RECURSION_LIMIT: int = 40
 
-# ---------------------------------------------------------------------------
-# PDF extraction
-# ---------------------------------------------------------------------------
-
-# Skip downloading PDFs larger than this (bytes). Prevents the agent from
-# stalling on enormous legislative appendices or scanned image bundles.
-MAX_PDF_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
