@@ -1,6 +1,6 @@
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Type, TypeVar
 
 from pydantic import BaseModel
 

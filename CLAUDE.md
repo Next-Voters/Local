@@ -71,6 +71,8 @@ Each city runs as an independent **ECS Fargate task**:
 - **Dispatcher Lambda** fans out — one ECS task per city
 - Each Fargate task runs `main.py` with `NV_CITY` env var, executing all topics sequentially
 - Reports written to **Supabase Postgres** `reports` table
+- After all topics complete, a `{city, report_id}` message is enqueued to **SQS**, triggering the **Email Lambda**
+- If any topic or the SQS enqueue fails, failure metadata is sent to the **Pipeline DLQ** before exit 1
 - **Email Lambda** (separate) reads reports and dispatches via **Amazon SES**
 
 ### Core Components
@@ -94,14 +96,14 @@ Each city runs as an independent **ECS Fargate task**:
   - `storage.py`: Saves pipeline output to Supabase via a two-table upsert: parent `reports` row (per city+date) and child `report_headers` rows (per legislation item with topic, header, and bullets). Returns the `report_id` on success. Single function: `save_report(city, topic_name, result) → int | None`
 - `content/`: Content processing and evaluation utilities
   - `compressor.py`: Context compression via `compress_text(text, rate, query)`. Retains the first `rate * len(text)` characters (head truncation). The `query` parameter is reserved for future query-aware pruning. Short content (<`MIN_CHARS_TO_COMPRESS` chars) bypasses compression.
-  - `pdf_extractor.py`: PDF detection (HEAD request + suffix check) and PDF-to-Markdown conversion via pymupdf4llm.
   - `source_reliability.py`: Domain-level source reliability scoring and filtering — classifies URLs into government, legislative, news, other, or blocked tiers.
 - `tools/`: Agent tool adapters with LangChain `@tool` decorators, re-exported via `__init__.py` (e.g., `reflection.py`, `web_search.py`). Contains a `utils/` subdirectory for service modules (`tavily.py`, `extract.py`). Google Calendar integration uses a remote MCP server (`https://gcal.mintmcp.com/mcp`) loaded via `langchain-mcp-adapters` in `agents/legislation_finder.py`.
 - `supabase_client.py`: Loads supported cities and topics from Supabase
+- `sqs_client.py`: SQS factory (`get_sqs_client()`) and message helpers (`enqueue_report()`, `enqueue_pipeline_failure()`)
 
 **Configuration** (`config/`):
 - `system_prompts/`: Prompt templates for agents and nodes
-- `constants.py`: Pipeline-wide tuneable constants: `COMPRESSION_RATE`, `MIN_CHARS_TO_COMPRESS`, `MAX_AGENT_MESSAGES`, `MAX_REFLECTION_ENTRIES`, `AGENT_RECURSION_LIMIT`
+- `constants.py`: Pipeline-wide tuneable constants: `COMPRESSION_RATE`, `MIN_CHARS_TO_COMPRESS`, `MAX_REFLECTION_ENTRIES`, `AGENT_RECURSION_LIMIT`
 
 ### Data Flow Example
 
@@ -110,6 +112,7 @@ Each city runs as an independent **ECS Fargate task**:
 3. **Note Taker**: LLM summarizes all blocks into dense notes
 4. **Summary Writer**: LLM extracts structured data (header + bullets per item) → `WriterOutput`
 5. **Report Storage** (container mode): Upserts parent `reports` row (city+date), then `report_headers` rows (one per legislation item with topic, header, bullets). Returns `report_id`.
+6. **SQS Notification** (container mode): Enqueues `{city, report_id}` to SQS so the Email Lambda can send the report. If any step failed, sends failure metadata to the Pipeline DLQ.
 
 ### Key Design Decisions
 
@@ -149,7 +152,8 @@ Each city runs as an independent **ECS Fargate task**:
 - Each ECS Fargate task runs ONE city (all topics sequentially)
 - `NV_CITY` env var is validated against `supported_cities` before any API calls
 - Each topic result is saved to DB immediately after pipeline completion
-- If any topic fails (pipeline error or DB save failure), the task exits 1
+- After all topics, enqueues `{city, report_id}` to SQS for the Email Lambda
+- If any topic fails (pipeline error, DB save failure, or SQS enqueue failure), failure metadata is sent to the Pipeline DLQ and the task exits 1
 
 ## LLM Configuration
 
@@ -172,6 +176,8 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 
 **Container-specific**:
 - `NV_CITY`: City to run pipeline for (set by Dispatcher Lambda)
+- `SQS_QUEUE_URL`: SQS queue URL for report-ready messages (triggers Email Lambda)
+- `SQS_PIPELINE_DLQ_URL`: SQS dead letter queue URL for pipeline failure metadata
 
 ## Common Patterns
 
@@ -193,6 +199,7 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 - Classifier output parse failures → reject all sources (safe fallback)
 - Per-topic failures are logged; container continues remaining topics then exits 1
 - `save_report()` returning `None` is treated as a failure (exit 1)
+- Pipeline failures are sent to the Pipeline DLQ (best-effort — never masks the original error)
 
 ## Code Conventions
 
@@ -215,6 +222,7 @@ docker run -e NV_CITY=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUP
 - EventBridge Scheduler triggers Dispatcher Lambda weekly
 - Dispatcher Lambda launches one Fargate task per supported city
 - Each task runs `main.py` with `NV_CITY` set, executing all topics and saving to Supabase
+- After all topics, task enqueues `{city, report_id}` to SQS; failures go to the Pipeline DLQ
 - Email Lambda reads from `reports` table and sends via SES
 
 **Logs**: Emitted to stdout/stderr; collected by CloudWatch in production.

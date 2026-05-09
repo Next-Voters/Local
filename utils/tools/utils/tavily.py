@@ -5,7 +5,6 @@ All functions are synchronous (use TavilyClient).
 
 import logging
 import os
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +50,7 @@ def tavily_search(
     search_depth: str = "basic",
     topic: str = "general",
     days: int | None = None,
+    time_range: str | None = None,
     include_domains: list[str] | None = None,
     exclude_domains: list[str] | None = None,
 ) -> dict:
@@ -62,6 +62,7 @@ def tavily_search(
         search_depth: Search depth — "basic" or "advanced".
         topic: Topic type — "general", "news", or "finance".
         days: Restrict results to the last N days.
+        time_range: Restrict results to a time range — "day", "week", "month", "year".
         include_domains: Only include results from these domains.
         exclude_domains: Exclude results from these domains.
     """
@@ -77,6 +78,8 @@ def tavily_search(
     }
     if days is not None:
         kwargs["days"] = days
+    if time_range is not None:
+        kwargs["time_range"] = time_range
     if include_domains:
         kwargs["include_domains"] = include_domains
     if exclude_domains:
@@ -104,23 +107,16 @@ def search_legislation(
     Returns:
         Dict with Tavily search results.
     """
-    client = _get_client()
-
     fetch_count = min(max_results * 2, _MAX_RESULTS_CAP)
 
-    kwargs: dict[str, Any] = {
-        "query": f'{query} "{city}"',
-        "max_results": fetch_count,
-        "search_depth": "advanced",
-        "topic": "general",
-        "time_range": "month",
-        "include_answer": False,
-        "include_images": False,
-        "include_raw_content": False,
-        "exclude_domains": _EXCLUDE_DOMAINS,
-    }
-
-    raw = client.search(**kwargs)
+    raw = tavily_search(
+        query=f'{query} "{city}"',
+        max_results=fetch_count,
+        search_depth="advanced",
+        topic="general",
+        time_range="month",
+        exclude_domains=_EXCLUDE_DOMAINS,
+    )
 
     results = raw.get("results", [])
     raw_count = len(results)

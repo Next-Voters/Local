@@ -13,10 +13,12 @@ def run_container_mode(city: str) -> int:
     """Run all topics for a single city and save results to the database.
 
     Returns:
-        0 on success, 1 if any topic failed or any report failed to save.
+        0 on success, 1 if any topic failed, any report failed to save,
+        or the SQS enqueue failed.
     """
     from pipelines.nv_local import run_pipeline
     from utils.report.storage import save_report
+    from utils.sqs_client import enqueue_pipeline_failure, enqueue_report
     from utils.supabase_client import get_supported_cities_from_db, get_supported_topics
 
     logger = logging.getLogger(__name__)
@@ -40,24 +42,32 @@ def run_container_mode(city: str) -> int:
 
     logger.info(f"Running pipeline for city={city}, topics={topics}")
     failures = []
+    report_id: int | None = None
 
     for topic in topics:
         label = f"{city} ({topic})"
         try:
             logger.info(f"Starting pipeline: {label}")
             result = run_pipeline(city, topic)
-            report_id = save_report(city, topic, result)
-            if report_id is None:
+            rid = save_report(city, topic, result)
+            if rid is None:
                 logger.error(f"Failed to save report: {label}")
                 failures.append(label)
             else:
+                report_id = rid
                 logger.info(f"Completed: {label} (report_id={report_id})")
         except Exception as e:
             logger.error(f"Failed: {label} — {e}")
             failures.append(label)
 
+    # Enqueue SQS message so the Email Lambda can send the report
+    if report_id is not None:
+        if not enqueue_report(city, report_id):
+            failures.append(f"{city} (SQS enqueue)")
+
     if failures:
         logger.error(f"Pipeline failures: {failures}")
+        enqueue_pipeline_failure(city, failures, report_id)
         return 1
 
     return 0

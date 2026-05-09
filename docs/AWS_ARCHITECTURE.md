@@ -23,7 +23,8 @@ flowchart LR
 
     %% Messaging layer
     SQS["Simple Queue Service<br/>report-ready queue"]
-    DLQ[("Simple Queue Service<br/>Dead Letter Queue")]
+    DLQ[("Simple Queue Service<br/>Email DLQ")]
+    PDLQ[("Simple Queue Service<br/>Pipeline DLQ")]
 
     %% Delivery layer
     EML["Email Lambda"]
@@ -38,7 +39,7 @@ flowchart LR
     DL --> ECS
     ECS <-.->|"Internet Gateway Access"| EXT
     ECS -->|"write report<br/>+ bullets"| DB
-    ECS -->|"enqueue<br/>{city_id, report_id}"| SQS
+    ECS -->|"enqueue<br/>{city, report_id}"| SQS
     SQS --> EML
     EML -->|"read report<br/>write send_log"| DB
     EML --> SES
@@ -47,6 +48,7 @@ flowchart LR
     %% Side flows
     DL -.->|read cities| DB
     SQS -.->|after N retries| DLQ
+    ECS -.->|"on failure<br/>{city, failures, report_id}"| PDLQ
 
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef ext fill:#4A90E2,stroke:#1F3A5F,stroke-width:2px,color:#fff
@@ -57,7 +59,7 @@ flowchart LR
     class EB,DL,ECS,EML,SES aws
     class EXT ext
     class DB db
-    class SQS,DLQ queue
+    class SQS,DLQ,PDLQ queue
     class USERS user
     style VPC fill:#1F3A5F,stroke:#0D1F33,stroke-width:2px,color:#fff
 
@@ -68,10 +70,10 @@ flowchart LR
 
 1. **EventBridge** triggers the **Dispatcher Lambda** on a weekly cron.
 2. **Dispatcher Lambda** reads the active cities from **Supabase** and fans out one **Elastic Container Service Fargate** task per city.
-3. Each **Fargate task** calls external APIs (LLM, scraping) to generate report content, writes the report and its bullets to **Supabase**, then enqueues a message to **Simple Queue Service** containing `{city_id, report_id}` and exits.
+3. Each **Fargate task** calls external APIs (LLM, scraping) to generate report content, writes the report and its bullets to **Supabase**, then enqueues a message to **Simple Queue Service** containing `{city, report_id}` and exits. If any topic or the SQS enqueue fails, the task sends failure metadata to the **Pipeline Dead Letter Queue** before exiting 1.
 4. **Simple Queue Service** holds the message. AWS-managed pollers invoke the **Email Lambda** with batches of messages. Lambda reserved concurrency caps parallel executions to protect Simple Email Service rate limits.
 5. **Email Lambda** reads the report and bullets from Supabase, queries subscribers for the city, renders the email, sends via **Simple Email Service**, and writes to `send_log` for idempotency.
-6. Failed messages are retried automatically by Simple Queue Service. After N failures, they land in the **Dead Letter Queue** for investigation.
+6. Failed Email Lambda messages are retried automatically by Simple Queue Service. After N failures, they land in the **Email Dead Letter Queue** for investigation. Pipeline-side failures land in the separate **Pipeline Dead Letter Queue** directly from the Fargate task.
 
 ---
 
