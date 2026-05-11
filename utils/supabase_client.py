@@ -2,7 +2,7 @@
 Supabase client utilities for Next Voters Local pipeline.
 
 This module provides functions to query Supabase for:
-- Supported cities (from supported_cities table)
+- Supported regions (from regions table)
 - Supported topics (from supported_topics table)
 """
 
@@ -46,12 +46,12 @@ def get_supabase_client() -> Client:
     return create_client(supabase_url, supabase_key)
 
 
-def get_supported_cities_from_db() -> list[str]:
+def get_supported_regions_from_db() -> list[str]:
     """
-    Query the supported_cities table from Supabase.
+    Query the regions table from Supabase.
 
     Returns:
-        List of city names sorted alphabetically
+        List of region names sorted alphabetically
 
     Raises:
         ValueError: If Supabase credentials are missing
@@ -60,21 +60,21 @@ def get_supported_cities_from_db() -> list[str]:
     try:
         client = get_supabase_client()
 
-        logger.info("Querying supported cities from Supabase...")
+        logger.info("Querying supported regions from Supabase...")
         response = (
-            client.table("supported_cities").select("city").order("city").execute()
+            client.table("regions").select("region").order("region").execute()
         )
 
-        cities = [row["city"] for row in response.data]
-        logger.info(f"Successfully retrieved {len(cities)} supported cities: {cities}")
+        regions = [row["region"] for row in response.data]
+        logger.info(f"Successfully retrieved {len(regions)} supported regions: {regions}")
 
-        return cities
+        return regions
 
     except ValueError as e:
         logger.error(f"Supabase configuration error: {e}")
         raise
     except Exception as e:
-        logger.error(f"Failed to query supported cities from Supabase: {e}")
+        logger.error(f"Failed to query supported regions from Supabase: {e}")
         raise
 
 

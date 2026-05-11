@@ -48,7 +48,7 @@ def _extract_search_results(raw_results: dict[str, Any]) -> list[dict[str, Any]]
 async def web_search(
     query: str,
     tool_call_id: Annotated[str, InjectedToolCallId],
-    city: Annotated[str, InjectedState("city")],
+    city: Annotated[str, InjectedState("region")],
     max_results: int = WEB_SEARCH_MAX_RESULTS,
 ) -> Command:
     """Search the web for legislation related to a specific municipality or topic.

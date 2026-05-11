@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Next Voters Local** is a multi-agent AI research pipeline that discovers, researches, and summarizes municipal legislation across cities. It makes government information accessible to communities that lack time or resources to track local officials.
 
-The system runs as a standalone CLI tool or Docker container, orchestrated by LangGraph-based agents. Each execution researches legislation for a given city and stores structured results (headers + bullets) in Supabase.
+The system runs as a standalone CLI tool or Docker container, orchestrated by LangGraph-based agents. Each execution researches legislation for a given region and stores structured results (headers + bullets) in Supabase.
 
 ## Development Setup
 
@@ -25,8 +25,8 @@ pip install -r requirements.txt
 
 - Copy `.env.example` to `.env` and set required keys
 - All entrypoints and modules that read env vars call `load_dotenv()` from `python-dotenv`, so `.env` is loaded automatically
-- **CLI entrypoint**: `main.py` → `pipelines/nv_local.py` (single-city, requires city argument validated against Supabase `supported_cities`)
-- **Container entrypoint**: `main.py` with `NV_CITY` env var set (single-city, runs all topics, saves to Supabase `reports` table)
+- **CLI entrypoint**: `main.py` → `pipelines/nv_local.py` (single-region, requires region argument validated against Supabase `regions`)
+- **Container entrypoint**: `main.py` with `NV_CITY` env var set (single-region, runs all topics, saves to Supabase `reports` table)
 
 ### Common Commands
 
@@ -34,23 +34,23 @@ pip install -r requirements.txt
 # Compile check (catches syntax errors early)
 python -m compileall -q .
 
-# Run pipeline for a single city (requires OPENAI_API_KEY + TAVILY_API_KEY)
-python main.py <city_name>
+# Run pipeline for a single region (requires OPENAI_API_KEY + TAVILY_API_KEY)
+python main.py <region_name>
 
-# Run pipeline for a city scoped to a specific topic
-python main.py <city_name> -t <topic_name>
+# Run pipeline for a region scoped to a specific topic
+python main.py <region_name> -t <topic_name>
 
-# Container mode (runs all topics for a city, saves to DB)
-NV_CITY=<city_name> python main.py
+# Container mode (runs all topics for a region, saves to DB)
+NV_CITY=<region_name> python main.py
 ```
 
-**Post-implementation verification**: After any code changes, always run `python -m compileall -q .` followed by `python main.py <city_name>` to confirm both compile-time and runtime correctness.
+**Post-implementation verification**: After any code changes, always run `python -m compileall -q .` followed by `python main.py <region_name>` to confirm both compile-time and runtime correctness.
 
 ### Testing
 
 There is no dedicated test suite. Quick validation:
 - `python -m compileall -q .` to catch syntax errors
-- Manual pipeline runs with test cities to verify data flow
+- Manual pipeline runs with test regions to verify data flow
 
 ## Architecture Overview
 
@@ -66,12 +66,12 @@ legislation_finder → content_retrieval → note_taker → summary_writer
 
 ### Deployment Model (AWS)
 
-Each city runs as an independent **ECS Fargate task**:
+Each region runs as an independent **ECS Fargate task**:
 - **EventBridge Scheduler** triggers weekly
-- **Dispatcher Lambda** fans out — one ECS task per city
+- **Dispatcher Lambda** fans out — one ECS task per region
 - Each Fargate task runs `main.py` with `NV_CITY` env var, executing all topics sequentially
 - Reports written to **Supabase Postgres** `reports` table
-- After all topics complete, a `{city, report_id}` message is enqueued to **SQS**, triggering the **Email Lambda**
+- After all topics complete, a `{region, report_id}` message is enqueued to **SQS**, triggering the **Email Lambda**
 - If any topic or the SQS enqueue fails, failure metadata is sent to the **Pipeline DLQ** before exit 1
 - **Email Lambda** (separate) reads reports and dispatches via **Amazon SES**
 
@@ -93,12 +93,12 @@ Each city runs as an independent **ECS Fargate task**:
   - `state.py`: `ChainData` TypedDict (pipeline state contract)
   - `pydantic.py`: Structured output schemas (e.g., `WriterOutput`)
 - `report/`:
-  - `storage.py`: Saves pipeline output to Supabase via a two-table upsert: parent `reports` row (per city+date) and child `report_headers` rows (per legislation item with topic, header, and bullets). Returns the `report_id` on success. Single function: `save_report(city, topic_name, result) → int | None`
+  - `storage.py`: Saves pipeline output to Supabase via a two-table upsert: parent `reports` row (per region+date) and child `report_headers` rows (per legislation item with topic, header, and bullets). Returns the `report_id` on success. Single function: `save_report(region, topic_name, result) → int | None`
 - `content/`: Content processing and evaluation utilities
   - `compressor.py`: Context compression via `compress_text(text, rate, query)`. Retains the first `rate * len(text)` characters (head truncation). The `query` parameter is reserved for future query-aware pruning. Short content (<`MIN_CHARS_TO_COMPRESS` chars) bypasses compression.
   - `source_reliability.py`: Domain-level source reliability scoring and filtering — classifies URLs into government, legislative, news, other, or blocked tiers.
 - `tools/`: Agent tool adapters with LangChain `@tool` decorators, re-exported via `__init__.py` (e.g., `reflection.py`, `web_search.py`). Contains a `utils/` subdirectory for service modules (`tavily.py`, `extract.py`). Google Calendar integration uses a remote MCP server (`https://gcal.mintmcp.com/mcp`) loaded via `langchain-mcp-adapters` in `agents/legislation_finder.py`.
-- `supabase_client.py`: Loads supported cities and topics from Supabase
+- `supabase_client.py`: Loads supported regions and topics from Supabase
 - `sqs_client.py`: SQS factory (`get_sqs_client()`) and message helpers (`enqueue_report()`, `enqueue_pipeline_failure()`)
 
 **Configuration** (`config/`):
@@ -111,8 +111,8 @@ Each city runs as an independent **ECS Fargate task**:
 2. **Content Retrieval**: Fetches each URL's text via Tavily Extract (with `markdown.new` as fallback); each block is then compressed via `utils/content/compressor.py` → list of compressed text blocks
 3. **Note Taker**: LLM summarizes all blocks into dense notes
 4. **Summary Writer**: LLM extracts structured data (header + bullets per item) → `WriterOutput`
-5. **Report Storage** (container mode): Upserts parent `reports` row (city+date), then `report_headers` rows (one per legislation item with topic, header, bullets). Returns `report_id`.
-6. **SQS Notification** (container mode): Enqueues `{city, report_id}` to SQS so the Email Lambda can send the report. If any step failed, sends failure metadata to the Pipeline DLQ.
+5. **Report Storage** (container mode): Upserts parent `reports` row (region+date), then `report_headers` rows (one per legislation item with topic, header, bullets). Returns `report_id`.
+6. **SQS Notification** (container mode): Enqueues `{region, report_id}` to SQS so the Email Lambda can send the report. If any step failed, sends failure metadata to the Pipeline DLQ.
 
 ### Key Design Decisions
 
@@ -148,11 +148,11 @@ Each city runs as an independent **ECS Fargate task**:
 - System prompts include explicit "Exit Criteria" sections with measurable stopping conditions
 - Together these reduce LLM request volume ~40% while maintaining research quality
 
-**Single-city Fargate tasks**
-- Each ECS Fargate task runs ONE city (all topics sequentially)
-- `NV_CITY` env var is validated against `supported_cities` before any API calls
+**Single-region Fargate tasks**
+- Each ECS Fargate task runs ONE region (all topics sequentially)
+- `NV_CITY` env var is validated against `regions` before any API calls
 - Each topic result is saved to DB immediately after pipeline completion
-- After all topics, enqueues `{city, report_id}` to SQS for the Email Lambda
+- After all topics, enqueues `{region, report_id}` to SQS for the Email Lambda
 - If any topic fails (pipeline error, DB save failure, or SQS enqueue failure), failure metadata is sent to the Pipeline DLQ and the task exits 1
 
 ## LLM Configuration
@@ -170,12 +170,12 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 **Core** (required):
 - `OPENAI_API_KEY`: OpenAI API access
 - `TAVILY_API_KEY`: Tavily Search + Extract (web search and content retrieval)
-- `SUPABASE_URL`, `SUPABASE_KEY`: City/topic config + report storage
+- `SUPABASE_URL`, `SUPABASE_KEY`: Region/topic config + report storage
 - `TOGETHER_API_KEY`: Dynamic self-information scoring for context compression
 - `GLAMA_API_KEY`: MCP for Google Calendar event creation
 
 **Container-specific**:
-- `NV_CITY`: City to run pipeline for (set by Dispatcher Lambda)
+- `NV_CITY`: Region to run pipeline for (set by Dispatcher Lambda)
 - `SQS_QUEUE_URL`: SQS queue URL for report-ready messages (triggers Email Lambda)
 - `SQS_PIPELINE_DLQ_URL`: SQS dead letter queue URL for pipeline failure metadata
 
@@ -183,7 +183,7 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 
 **State Passing**
 - Pipeline state is a `ChainData` TypedDict. Each node receives it as input, modifies relevant fields, and returns it.
-- Example: `legislation_finder_node` receives `{"city": str, "topic": str}`, returns `{"city": str, "topic": str, "legislation_sources": list[str], ...}`
+- Example: `legislation_finder_node` receives `{"region": str, "topic": str}`, returns `{"region": str, "topic": str, "legislation_sources": list[str], ...}`
 
 **LLM Calls**
 - Structured output: use `get_structured_llm(OutputSchema)` → returns a Runnable that enforces schema
@@ -210,7 +210,7 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 
 ## Deployment
 
-**Local**: `python main.py <city>`
+**Local**: `python main.py <region>`
 
 **Docker**:
 ```bash
@@ -220,9 +220,9 @@ docker run -e NV_CITY=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUP
 
 **AWS (ECS Fargate)**:
 - EventBridge Scheduler triggers Dispatcher Lambda weekly
-- Dispatcher Lambda launches one Fargate task per supported city
+- Dispatcher Lambda launches one Fargate task per supported region
 - Each task runs `main.py` with `NV_CITY` set, executing all topics and saving to Supabase
-- After all topics, task enqueues `{city, report_id}` to SQS; failures go to the Pipeline DLQ
+- After all topics, task enqueues `{region, report_id}` to SQS; failures go to the Pipeline DLQ
 - Email Lambda reads from `reports` table and sends via SES
 
 **Logs**: Emitted to stdout/stderr; collected by CloudWatch in production.
@@ -249,8 +249,8 @@ docker run -e NV_CITY=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUP
 1. Update `utils/llm/config.py:DEFAULT_LLM_CONFIG`
 2. Note: All LLM factory functions reference this dict, so one change affects all calls
 
-**Debugging a city pipeline failure**:
-1. Run single city: `python main.py <city_name>`
+**Debugging a region pipeline failure**:
+1. Run single region: `python main.py <region_name>`
 2. Check error message in stdout/stderr
 3. Likely causes: missing env vars (`OPENAI_API_KEY`, `TAVILY_API_KEY`), Tavily Extract failure on a domain, agent hitting `recursion_limit=40` before completing
-4. Container mode: check ECS task logs in CloudWatch, verify `NV_CITY` is in `supported_cities` table
+4. Container mode: check ECS task logs in CloudWatch, verify `NV_CITY` is in `regions` table

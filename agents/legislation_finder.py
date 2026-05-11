@@ -62,7 +62,7 @@ def _build_agent(gcal_tools: list) -> object:
         state_schema=LegislationFinderState,
         tools=[web_search] + selected,
         system_prompt=lambda state: legislation_finder_sys_prompt.format(
-            input_city=state.get("city", "Unknown"),
+            input_city=state.get("region", "Unknown"),
             last_week_date=(datetime.today() - timedelta(days=7)).strftime("%B %d, %Y"),
             today=datetime.today().strftime("%B %d, %Y"),
         ),
@@ -171,7 +171,7 @@ async def invoke_legislation_finder(city: str) -> dict:
 
     invoke_kwargs = {
         "input": {
-            "city": city,
+            "region": city,
             "messages": [
                 HumanMessage(content=f"Find recent legislation for {city}.")
             ],

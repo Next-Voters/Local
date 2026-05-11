@@ -8,11 +8,11 @@ The Supabase database is organized into four functional groups: pipeline tables 
 
 These tables power the NV Local research pipeline — city/topic configuration, subscriber management, and report storage.
 
-### supported_cities
+### regions
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `city` | `text` | Primary key; canonical city label. |
+| `region` | `text` | Primary key; canonical region label. |
 
 Lookup table constraining subscriptions and reports to the vetted list of launch markets.
 
@@ -31,7 +31,7 @@ New topics must be inserted here first so that `subscription_topics` and `report
 | Column | Type | Notes |
 | --- | --- | --- |
 | `contact` | `text` | Primary key; subscriber email or handle. |
-| `city` | `text` | Nullable; foreign key → `supported_cities.city`. |
+| `region` | `text` | Nullable; foreign key → `regions.region`. |
 | `stripe_customer_id` | `text` | Nullable; Stripe customer identifier. |
 | `stripe_subscription_id` | `text` | Nullable; Stripe subscription identifier. |
 | `stripe_status` | `text` | Nullable; current Stripe subscription status. |
@@ -39,7 +39,7 @@ New topics must be inserted here first so that `subscription_topics` and `report
 | `referral_code` | `text` | Nullable, unique; subscriber's referral code. |
 | `tier` | `text` | Nullable; subscription tier. CHECK: `'pro'` or `'free'`. |
 
-Each subscription holds a unique contact identifier and optionally references a city. Stripe billing fields track subscription state. Topics are managed through the `subscription_topics` junction table.
+Each subscription holds a unique contact identifier and optionally references a region. Stripe billing fields track subscription state. Topics are managed through the `subscription_topics` junction table.
 
 ### subscription_topics (Junction Table)
 
@@ -55,10 +55,10 @@ Composite primary key `(subscription_id, topic_id)`. Implements the many-to-many
 | Column | Type | Notes |
 | --- | --- | --- |
 | `id` | `bigint` | Identity primary key (ALWAYS GENERATED). |
-| `city` | `text` | Foreign key → `supported_cities.city`. |
+| `region` | `text` | Foreign key → `regions.region`. |
 | `report_date` | `date` | Date the report covers; defaults to `CURRENT_DATE`. |
 
-Parent record for a city's daily pipeline run. A unique constraint on `(city, report_date)` enforces one report per city per day; re-runs upsert over the existing row. Individual legislation items are stored in `report_headers`.
+Parent record for a region's daily pipeline run. A unique constraint on `(region, report_date)` enforces one report per region per day; re-runs upsert over the existing row. Individual legislation items are stored in `report_headers`.
 
 ### report_headers
 
@@ -109,13 +109,13 @@ Tracks aggregate chat usage metrics.
 | Column | Type | Notes |
 | --- | --- | --- |
 | `id` | `integer` | Serial primary key. |
-| `city` | `text` | Unique; the requested city name. |
+| `region` | `text` | Unique; the requested region name. |
 | `vote_count` | `integer` | Current vote tally; defaults to `0`. |
 | `threshold` | `integer` | Votes required for approval; defaults to `25`. |
 | `status` | `text` | CHECK: `'pending'`, `'approved'`, or `'rejected'`; defaults to `'pending'`. |
 | `created_at` | `timestamptz` | Row creation timestamp; defaults to `now()`. |
 
-Community-driven city expansion: users vote for cities they want covered. When `vote_count` reaches `threshold`, the request can be approved and the city added to `supported_cities`.
+Community-driven region expansion: users vote for regions they want covered. When `vote_count` reaches `threshold`, the request can be approved and the region added to `regions`.
 
 ### region_votes
 
@@ -165,8 +165,8 @@ Standard migration tracking table used by the migration framework.
 
 ```mermaid
 erDiagram
-    supported_cities ||--o{ subscriptions : "city"
-    supported_cities ||--o{ reports : "city"
+    regions ||--o{ subscriptions : "region"
+    regions ||--o{ reports : "region"
     reports ||--o{ report_headers : "report_id"
     supported_topics ||--o{ subscription_topics : "topic_id"
     supported_topics ||--o{ report_headers : "topic_id"
@@ -179,7 +179,7 @@ erDiagram
 ```
 
 Key relationships:
-- `supported_cities` supplies city references for `subscriptions` and `reports` (one-to-many).
+- `regions` supplies region references for `subscriptions` and `reports` (one-to-many).
 - `reports` → `report_headers` (one-to-many; each report has multiple headers across topics).
 - `supported_topics` is referenced by `subscription_topics` (subscriber preferences) and `report_headers` (pipeline output).
 - `subscriptions` ↔ `supported_topics` linked through `subscription_topics` (many-to-many).
@@ -194,19 +194,19 @@ Pipeline tables are queried via two modules:
 
 **`utils/supabase_client.py`**:
 - `get_supabase_client()` → `Client` — creates a Supabase client from `SUPABASE_URL` and `SUPABASE_KEY` env vars
-- `get_supported_cities_from_db()` → `list[str]` — queries `supported_cities` ordered alphabetically
+- `get_supported_regions_from_db()` → `list[str]` — queries `regions` ordered alphabetically
 - `get_supported_topics()` → `list[str]` — queries `supported_topics.topic_name` ordered alphabetically
 
 **`utils/report/storage.py`**:
 - `_get_topic_id(topic_name)` → `int | None` — resolves a topic name to its integer ID via `supported_topics` (cached)
-- `save_report(city, topic_name, result)` → `int | None` — upserts a `reports` row on `(city, report_date)`, then upserts `report_headers` rows per legislation item on `(report_id, topic_id, header)`. Returns the `report_id` on success, `None` on failure.
+- `save_report(region, topic_name, result)` → `int | None` — upserts a `reports` row on `(region, report_date)`, then upserts `report_headers` rows per legislation item on `(report_id, topic_id, header)`. Returns the `report_id` on success, `None` on failure.
 
 ---
 
 ## Operational Guidance
 
-- **Seed lookup tables first**: ensure all topics and cities exist in their respective lookup tables before creating subscriptions or junction table entries.
+- **Seed lookup tables first**: ensure all topics and regions exist in their respective lookup tables before creating subscriptions or junction table entries.
 - **Insert topics before linking**: when adding a new topic, insert it into `supported_topics`, then create rows in `subscription_topics` to link it to existing subscriptions.
 - **Query patterns**: to fetch all topics for a subscription, join `subscriptions` → `subscription_topics` → `supported_topics`. To find all subscribers of a topic, reverse the join direction.
 - **Maintain referential integrity**: never insert into `subscription_topics` without first ensuring both the subscription and topic exist in their parent tables; the database will reject violations.
-- **Region request workflow**: new city requests go into `region_requests` with status `pending`. Votes are recorded in `region_votes`. When `vote_count` meets `threshold`, approve the request and add the city to `supported_cities`.
+- **Region request workflow**: new region requests go into `region_requests` with status `pending`. Votes are recorded in `region_votes`. When `vote_count` meets `threshold`, approve the request and add the region to `regions`.
