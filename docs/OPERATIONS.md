@@ -51,7 +51,7 @@ Required GitHub configuration:
 - Dispatcher Lambda launches one ECS Fargate task per supported city
 - Each Fargate task runs `main.py` with `NV_CITY` env var set
 - Reports are saved to the Supabase `reports` table
-- After all topics complete, a `{city, report_id}` message is enqueued to SQS, triggering the Email Lambda
+- After all topics complete, a `{region, report_id}` message is enqueued to SQS, triggering the Email Lambda
 - If any topic or the SQS enqueue fails, failure metadata is sent to the pipeline DLQ
 - Logs are emitted to stdout/stderr and collected by CloudWatch
 
@@ -63,8 +63,8 @@ Required GitHub configuration:
 
 ## Data Storage And Backups
 
-- Reports are stored in the Supabase `reports` table (upserted per city/topic).
-- Supported cities and topics are read from Supabase (`supported_cities` and related tables).
+- Reports are stored in the Supabase `reports` table (upserted per region/topic).
+- Supported regions and topics are read from Supabase (`regions` and related tables).
 - Backups, retention, and schema migrations are owned by the Supabase project.
 
 ## Runbooks
@@ -72,7 +72,7 @@ Required GitHub configuration:
 ### Job Fails Immediately
 
 1) Check logs for missing env vars (common: `OPENAI_API_KEY` or `TAVILY_API_KEY`).
-2) In container mode, verify `NV_CITY` is set and the city exists in the `supported_cities` table.
+2) In container mode, verify `NV_CITY` is set and the region exists in the `regions` table.
 
 ### Tavily Search / Extract Errors
 
@@ -95,7 +95,7 @@ When a Fargate task exits 1, it sends failure metadata to the pipeline dead lett
 Message format:
 ```json
 {
-  "city": "toronto",
+  "region": "toronto",
   "failures": ["toronto (housing)", "toronto (SQS enqueue)"],
   "report_id": 42,
   "timestamp": "2026-05-09T12:00:00+00:00"

@@ -37,14 +37,14 @@ def _get_topic_id(topic_name: str) -> int | None:
         return None
 
 
-def save_report(city: str, topic_name: str, result: dict[str, Any]) -> int | None:
+def save_report(region: str, topic_name: str, result: dict[str, Any]) -> int | None:
     """Save a pipeline result to the reports and report_headers tables.
 
-    Upserts a parent report row for (city, today), then upserts one
+    Upserts a parent report row for (region, today), then upserts one
     report_headers row per legislation item with the topic and bullets.
 
     Args:
-        city: City name (FK to supported_cities).
+        region: Region name (FK to regions).
         topic_name: Topic name string (resolved to topic_id).
         result: Pipeline result dict containing 'legislation_summary' (WriterOutput).
 
@@ -56,7 +56,7 @@ def save_report(city: str, topic_name: str, result: dict[str, Any]) -> int | Non
         return None
 
     if not summary.items:
-        logger.warning(f"No items to save for {city}/{topic_name}, skipping upsert")
+        logger.warning(f"No items to save for {region}/{topic_name}, skipping upsert")
         return None
 
     topic_id = _get_topic_id(topic_name)
@@ -66,13 +66,13 @@ def save_report(city: str, topic_name: str, result: dict[str, Any]) -> int | Non
     try:
         client = get_supabase_client()
 
-        # Upsert parent report row: one per city per day
+        # Upsert parent report row: one per region per day
         report_response = client.table("reports").upsert(
             {
-                "city": city,
+                "region": region,
                 "report_date": date.today().isoformat(),
             },
-            on_conflict="city,report_date",
+            on_conflict="region,report_date",
         ).execute()
 
         report_id = report_response.data[0]["id"]
@@ -94,11 +94,11 @@ def save_report(city: str, topic_name: str, result: dict[str, Any]) -> int | Non
         ).execute()
 
         logger.info(
-            f"Saved report: {city}/{topic_name} "
+            f"Saved report: {region}/{topic_name} "
             f"(report_id={report_id}, headers={len(headers)})"
         )
         return report_id
 
     except Exception as e:
-        logger.error(f"Failed to save report {city}/{topic_name}: {e}")
+        logger.error(f"Failed to save report {region}/{topic_name}: {e}")
         return None

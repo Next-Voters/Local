@@ -29,11 +29,11 @@ def get_sqs_client():
     return boto3.client("sqs")
 
 
-def enqueue_report(city: str, report_id: int) -> bool:
+def enqueue_report(region: str, report_id: int) -> bool:
     """Enqueue a report-ready message for the Email Lambda.
 
     Args:
-        city: City name matching supported_cities.city.
+        region: Region name matching regions.region.
         report_id: The reports.id primary key returned by save_report().
 
     Returns:
@@ -48,9 +48,9 @@ def enqueue_report(city: str, report_id: int) -> bool:
         sqs = get_sqs_client()
         sqs.send_message(
             QueueUrl=queue_url,
-            MessageBody=json.dumps({"city": city, "report_id": report_id}),
+            MessageBody=json.dumps({"region": region, "report_id": report_id}),
         )
-        logger.info(f"Enqueued SQS message: city={city}, report_id={report_id}")
+        logger.info(f"Enqueued SQS message: region={region}, report_id={report_id}")
         return True
     except Exception as e:
         logger.error(f"Failed to enqueue SQS message: {e}")
@@ -58,7 +58,7 @@ def enqueue_report(city: str, report_id: int) -> bool:
 
 
 def enqueue_pipeline_failure(
-    city: str, failures: list[str], report_id: int | None
+    region: str, failures: list[str], report_id: int | None
 ) -> bool:
     """Send pipeline failure metadata to the dead letter queue.
 
@@ -66,7 +66,7 @@ def enqueue_pipeline_failure(
     raising, so a DLQ failure never masks the original pipeline error.
 
     Args:
-        city: City name that was being processed.
+        region: Region name that was being processed.
         failures: Labels of failed topics/steps (e.g. ["toronto (housing)"]).
         report_id: The report ID if any topic saved, or None if all failed.
 
@@ -83,13 +83,13 @@ def enqueue_pipeline_failure(
         sqs.send_message(
             QueueUrl=dlq_url,
             MessageBody=json.dumps({
-                "city": city,
+                "region": region,
                 "failures": failures,
                 "report_id": report_id,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }),
         )
-        logger.info(f"Enqueued pipeline failure to DLQ: city={city}")
+        logger.info(f"Enqueued pipeline failure to DLQ: region={region}")
         return True
     except Exception as e:
         logger.error(f"Failed to enqueue pipeline failure to DLQ: {e}")

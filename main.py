@@ -19,19 +19,19 @@ def run_container_mode(city: str) -> int:
     from pipelines.nv_local import run_pipeline
     from utils.report.storage import save_report
     from utils.sqs_client import enqueue_pipeline_failure, enqueue_report
-    from utils.supabase_client import get_supported_cities_from_db, get_supported_topics
+    from utils.supabase_client import get_supported_regions_from_db, get_supported_topics
 
     logger = logging.getLogger(__name__)
 
-    # Validate city before spending API credits
+    # Validate region before spending API credits
     try:
-        supported_cities = get_supported_cities_from_db()
+        supported_regions = get_supported_regions_from_db()
     except Exception as e:
-        logger.error(f"Failed to get supported cities: {e}")
+        logger.error(f"Failed to get supported regions: {e}")
         return 1
 
-    if city not in supported_cities:
-        logger.error(f"City '{city}' not in supported cities: {supported_cities}")
+    if city not in supported_regions:
+        logger.error(f"Region '{city}' not in supported regions: {supported_regions}")
         return 1
 
     try:
@@ -40,7 +40,7 @@ def run_container_mode(city: str) -> int:
         logger.error(f"Failed to get supported topics: {e}")
         return 1
 
-    logger.info(f"Running pipeline for city={city}, topics={topics}")
+    logger.info(f"Running pipeline for region={city}, topics={topics}")
     failures = []
     report_id: int | None = None
 

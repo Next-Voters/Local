@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def run_legislation_finder(inputs: ChainData) -> ChainData:
     """Run the legislation finder agent for the given city."""
-    city = inputs.get("city", "Unknown")
+    city = inputs.get("region", "Unknown")
 
     from agents.legislation_finder import invoke_legislation_finder
 

@@ -25,7 +25,7 @@ class BaseAgentState(TypedDict):
 class LegislationFinderState(BaseAgentState):
     """Agent-specific state for the legislation finder agent."""
 
-    city: NotRequired[str]
+    region: NotRequired[str]
     # Items are plain URL strings for HTML pages or dicts with pre-fetched
     # PDF content: {"url": str, "content": str, "source": "pdf"}.
     legislation_sources: NotRequired[Annotated[list[str | dict], operator.add]]
@@ -36,7 +36,7 @@ class LegislationFinderState(BaseAgentState):
 class ChainData(TypedDict):
     """Data sent through the chain of AI components."""
 
-    city: NotRequired[str]
+    region: NotRequired[str]
     topic: NotRequired[str]
     legislation_sources: NotRequired[list[str | dict]]
     legislation_content: NotRequired[list[str]]
