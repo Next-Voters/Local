@@ -16,9 +16,11 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+_sqs_client = None
+
 
 def get_sqs_client():
-    """Create and return a boto3 SQS client.
+    """Return a cached boto3 SQS client, creating one on first call.
 
     Credentials are discovered automatically from the environment
     (IAM role in Fargate, env vars or ~/.aws locally).
@@ -26,7 +28,10 @@ def get_sqs_client():
     Returns:
         boto3 SQS client.
     """
-    return boto3.client("sqs")
+    global _sqs_client
+    if _sqs_client is None:
+        _sqs_client = boto3.client("sqs")
+    return _sqs_client
 
 
 def enqueue_report(region: str, report_id: int) -> bool:
