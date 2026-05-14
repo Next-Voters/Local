@@ -50,19 +50,22 @@ jobs:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           REPOSITORY: ${{ vars.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.sha }}
+          ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          ECS_CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
         run: |
-          TASK_FAMILY="default-next-voters-agent-62fd"
           NEW_IMAGE="$REGISTRY/$REPOSITORY:$IMAGE_TAG"
 
           aws ecs describe-task-definition \
-            --task-definition "$TASK_FAMILY" \
+            --task-definition "$ECS_TASK_FAMILY" \
             --query taskDefinition \
             > task-def.json
 
-          jq --arg IMG "$NEW_IMAGE" \
-            '.containerDefinitions[0].image = $IMG |
+          jq --arg IMG "$NEW_IMAGE" --arg NAME "$ECS_CONTAINER_NAME" \
+            '(.containerDefinitions[] | select(.name == $NAME)).image = $IMG |
              del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
             task-def.json > updated-task-def.json
 
-          aws ecs register-task-definition \
-            --cli-input-json file://updated-task-def.json
+          NEW_REV=$(aws ecs register-task-definition \
+            --cli-input-json file://updated-task-def.json \
+            --query 'taskDefinition.revision' --output text)
+          echo "Registered $ECS_TASK_FAMILY:$NEW_REV with image $NEW_IMAGE"
