@@ -7,12 +7,12 @@ from typing import Any
 
 from utils.supabase_client import get_supported_regions_from_db
 from pipelines.node.content_retrieval import content_retrieval_chain
-from pipelines.node.legislation_finder import legislation_finder_chain
+from pipelines.node.run_agent_team import run_agent_team_chain
 from pipelines.node.note_taker import note_taker_chain
 from pipelines.node.summary_writer import summary_writer_chain
 
 chain = (
-    legislation_finder_chain
+    run_agent_team_chain
     | content_retrieval_chain
     | note_taker_chain
     | summary_writer_chain

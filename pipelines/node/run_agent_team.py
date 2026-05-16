@@ -37,7 +37,7 @@ def gather_citations(all_sources: list[str | dict]) -> list[str | dict]:
     ]
 
 
-def run_legislation_finder(inputs: ChainData) -> ChainData:
+def run_agent_team(inputs: ChainData) -> ChainData:
     """Run a lead researcher agent per topic for the given region.
 
     Fetches all supported topics from Supabase and runs a dedicated
@@ -70,4 +70,4 @@ def run_legislation_finder(inputs: ChainData) -> ChainData:
     }
 
 
-legislation_finder_chain = RunnableLambda(run_legislation_finder)
+run_agent_team_chain = RunnableLambda(run_agent_team)
