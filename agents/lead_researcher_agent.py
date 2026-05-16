@@ -48,7 +48,7 @@ def build_lead_researcher_agent(prompt: str):
 # Public entry point
 # ---------------------------------------------------------------------------
 
-async def invoke_legislation_finder(city: str, topic: str = "") -> dict:
+async def invoke_lead_researcher_agent(city: str, topic: str = "") -> dict:
     """Run the lead researcher for a city + topic.
 
     Public entry point consumed by ``pipelines/node/legislation_finder.py``.

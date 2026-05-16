@@ -40,10 +40,10 @@ def run_legislation_finder(inputs: ChainData) -> ChainData:
     """Run the legislation finder agent for the given city."""
     city = inputs.get("region", "Unknown")
 
-    from agents.lead_researcher_agent import invoke_legislation_finder
+    from agents.lead_researcher_agent import invoke_lead_researcher_agent
 
     topic = inputs.get("topic", "")
-    agent_result = asyncio.run(invoke_legislation_finder(city, topic=topic))
+    agent_result = asyncio.run(invoke_lead_researcher_agent(city, topic=topic))
 
     all_sources = agent_result.get("legislation_sources", [])
     legislation_sources = gather_citations(all_sources)
