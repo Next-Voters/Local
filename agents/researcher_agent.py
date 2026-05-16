@@ -21,7 +21,7 @@ from config.system_prompts import legislation_finder_sys_prompt
 from tools import web_search, reflection_tool, note_taker, delete_note
 from tools.middleware import ReflectionMiddleware
 from utils.llm import get_llm
-from utils.schemas import ResearcherOutput, ResearcherState
+from utils.schemas import ResearcherOutput
 
 logger = logging.getLogger(__name__)
 
