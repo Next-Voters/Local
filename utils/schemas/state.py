@@ -64,12 +64,22 @@ class LegislationFinderState(BaseAgentState):
     source_assessments: NotRequired[list[SourceAssessment]]
 
 
-class ChainData(TypedDict):
-    """Data sent through the chain of AI components."""
+class TopicResult(TypedDict):
+    """Per-topic pipeline results accumulated across nodes."""
 
-    region: NotRequired[str]
-    topic: NotRequired[str]
     legislation_sources: NotRequired[list[str | dict]]
     legislation_content: NotRequired[list[str]]
     notes: NotRequired[str]
     legislation_summary: NotRequired[WriterOutput]
+
+
+class ChainData(TypedDict):
+    """Data sent through the chain of AI components.
+
+    The pipeline processes all topics for a region in a single invocation.
+    Topics are fetched from Supabase in the legislation_finder node.
+    Per-topic intermediate state lives in ``topic_results``.
+    """
+
+    region: NotRequired[str]
+    topic_results: NotRequired[dict[str, TopicResult]]

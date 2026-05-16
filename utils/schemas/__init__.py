@@ -12,6 +12,7 @@ from utils.schemas.state import (
     LeadResearcherState,
     LegislationFinderState,
     ResearcherState,
+    TopicResult,
 )
 from utils.schemas.research_output import (
     LeadResearcherOutput,
@@ -29,5 +30,6 @@ __all__ = [
     "ResearcherState",
     "SourceAssessment",
     "TopicFinding",
+    "TopicResult",
     "WriterOutput",
 ]

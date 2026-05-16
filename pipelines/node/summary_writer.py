@@ -1,3 +1,10 @@
+"""Summary writer pipeline node.
+
+Extracts structured legislation items (header + bullets) per topic from
+the research notes and source content.
+"""
+
+import logging
 from functools import lru_cache
 
 from langchain_core.runnables import RunnableLambda
@@ -6,9 +13,12 @@ from utils.schemas import ChainData, WriterOutput
 from utils.llm import get_structured_llm
 from config.system_prompts import writer_sys_prompt
 
+logger = logging.getLogger(__name__)
+
 
 @lru_cache(maxsize=1)
 def _get_model():
+    """Return a cached structured LLM instance."""
     return get_structured_llm(WriterOutput)
 
 
@@ -32,12 +42,7 @@ def _build_user_message(
     legislation_content: list[str],
     notes: str,
 ) -> str:
-    """Assemble the SOURCES / SOURCE CONTENT / NOTES blocks the writer prompt expects.
-
-    Source numbers are 1-based and align with the order rendered by the
-    report formatter, so [N] markers in the output correlate with the
-    final report's "Sources" list.
-    """
+    """Assemble the SOURCES / SOURCE CONTENT / NOTES blocks the writer prompt expects."""
     if source_urls:
         sources_block = "\n".join(f"{i}. {url}" for i, url in enumerate(source_urls, start=1))
     else:
@@ -64,25 +69,30 @@ def _build_user_message(
 
 
 def research_summary_writer(inputs: ChainData) -> ChainData:
-    notes = inputs.get("notes")
-    source_urls = _normalize_source_urls(inputs.get("legislation_sources"))
-    legislation_content = inputs.get("legislation_content") or []
+    """Generate structured legislation summaries for each topic."""
+    topic_results = inputs.get("topic_results", {})
 
-    user_message = _build_user_message(source_urls, legislation_content, notes or "")
+    for topic, result in topic_results.items():
+        notes = result.get("notes")
+        source_urls = _normalize_source_urls(result.get("legislation_sources"))
+        legislation_content = result.get("legislation_content") or []
 
-    # Static system prompt keeps the prefix stable across invocations so
-    # GPT-5 can cache it; the per-run sources/content/notes go in the user message.
-    ai_generated_summary: WriterOutput = _get_model().invoke(
-        [
-            {"role": "system", "content": writer_sys_prompt},
-            {"role": "user", "content": user_message},
-        ],
-    )
+        user_message = _build_user_message(source_urls, legislation_content, notes or "")
 
-    if ai_generated_summary is None or not ai_generated_summary.items:
-        return {**inputs, "legislation_summary": None}
+        logger.info("Generating summary for topic: %s", topic)
+        ai_generated_summary: WriterOutput = _get_model().invoke(
+            [
+                {"role": "system", "content": writer_sys_prompt},
+                {"role": "user", "content": user_message},
+            ],
+        )
 
-    return {**inputs, "legislation_summary": ai_generated_summary}
+        if ai_generated_summary is None or not ai_generated_summary.items:
+            result["legislation_summary"] = None
+        else:
+            result["legislation_summary"] = ai_generated_summary
+
+    return {**inputs, "topic_results": topic_results}
 
 
 summary_writer_chain = RunnableLambda(research_summary_writer)

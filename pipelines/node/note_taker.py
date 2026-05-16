@@ -1,3 +1,9 @@
+"""Note taker pipeline node.
+
+Generates dense research notes per topic from the retrieved legislation content.
+"""
+
+import logging
 from functools import lru_cache
 
 from langchain_core.runnables import RunnableLambda
@@ -6,31 +12,39 @@ from utils.schemas import ChainData
 from utils.llm import get_llm
 from config.system_prompts import note_taker_sys_prompt
 
+logger = logging.getLogger(__name__)
+
 
 @lru_cache(maxsize=1)
 def _get_model():
+    """Return a cached LLM instance."""
     return get_llm()
 
 
 def research_note_taker(inputs: ChainData) -> ChainData:
-    raw_content_list = inputs.get("legislation_content", [])
+    """Generate research notes for each topic's legislation content."""
+    topic_results = inputs.get("topic_results", {})
 
-    if not raw_content_list:
-        return {**inputs, "notes": "No legislation content found."}
+    for topic, result in topic_results.items():
+        raw_content_list = result.get("legislation_content", [])
 
-    raw_content = "\n".join(raw_content_list)
+        if not raw_content_list:
+            result["notes"] = "No legislation content found."
+            continue
 
-    # Keep the system prompt static across invocations so GPT-5 can cache
-    # its ~4K-token prefix (~50% discount on cache hits). Dynamic page
-    # content moves to the user message tail.
-    ai_generated_notes = _get_model().invoke(
-        [
-            {"role": "system", "content": note_taker_sys_prompt},
-            {"role": "user", "content": f"Raw page content to distill:\n\n{raw_content}"},
-        ],
-    )
+        raw_content = "\n".join(raw_content_list)
 
-    return {**inputs, "notes": str(ai_generated_notes.content)}
+        logger.info("Generating notes for topic: %s", topic)
+        ai_generated_notes = _get_model().invoke(
+            [
+                {"role": "system", "content": note_taker_sys_prompt},
+                {"role": "user", "content": f"Raw page content to distill:\n\n{raw_content}"},
+            ],
+        )
+
+        result["notes"] = str(ai_generated_notes.content)
+
+    return {**inputs, "topic_results": topic_results}
 
 
 note_taker_chain = RunnableLambda(research_note_taker)

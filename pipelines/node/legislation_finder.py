@@ -5,6 +5,7 @@ from langchain_core.runnables import RunnableLambda
 
 from utils.schemas import ChainData
 from utils.content.source_reliability import filter_sources
+from utils.supabase_client import get_supported_topics
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +38,36 @@ def gather_citations(all_sources: list[str | dict]) -> list[str | dict]:
 
 
 def run_legislation_finder(inputs: ChainData) -> ChainData:
-    """Run the legislation finder agent for the given city."""
+    """Run a lead researcher agent per topic for the given region.
+
+    Fetches all supported topics from Supabase and runs a dedicated
+    lead researcher agent for each one.
+    """
     city = inputs.get("region", "Unknown")
+    topics = get_supported_topics()
 
-    from agents.lead_researcher_agent import invoke_lead_researcher_agent
+    from utils.agents import invoke_lead_researcher_agent
 
-    topic = inputs.get("topic", "")
-    agent_result = asyncio.run(invoke_lead_researcher_agent(city, topic=topic))
+    topic_results: dict[str, dict] = {}
 
-    all_sources = agent_result.get("legislation_sources", [])
-    legislation_sources = gather_citations(all_sources)
+    for topic in topics:
+        logger.info("Running lead researcher for %s / %s", city, topic)
+        agent_result = asyncio.run(invoke_lead_researcher_agent(city, topic=topic))
 
-    logger.info(
-        "Legislation finder for %s: %d accepted / %d raw",
-        city, len(legislation_sources), len(all_sources),
-    )
-    return {**inputs, "legislation_sources": legislation_sources}
+        all_sources = agent_result.get("legislation_sources", [])
+        legislation_sources = gather_citations(all_sources)
+
+        logger.info(
+            "Lead researcher for %s / %s: %d accepted / %d raw",
+            city, topic, len(legislation_sources), len(all_sources),
+        )
+
+        topic_results[topic] = {"legislation_sources": legislation_sources}
+
+    return {
+        "region": city,
+        "topic_results": topic_results,
+    }
 
 
 legislation_finder_chain = RunnableLambda(run_legislation_finder)

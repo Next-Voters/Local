@@ -3,6 +3,8 @@
 Fetches raw page content for each URL discovered by the legislation finder
 agent.  URLs that were already extracted inline (PDFs parsed by the web_search
 tool) are passed through without re-fetching or re-compressing.
+
+Processes each topic's sources independently via ``topic_results``.
 """
 
 import logging
@@ -24,18 +26,13 @@ from utils.schemas import ChainData
 logger = logging.getLogger(__name__)
 
 
-def run_content_retrieval(inputs: ChainData) -> ChainData:
-    """Fetch and compress legislation page content.
-
-    ``legislation_sources`` may contain plain URL strings *or* dicts with
-    pre-fetched content (``{"url": str, "content": str, "source": "pdf"}``).
-    Pre-fetched items are passed through directly; plain URLs are fetched via
-    Tavily Extract with a ``markdown.new`` fallback, then compressed.
-    """
-    legislation_sources = inputs.get("legislation_sources", [])
-
+def _retrieve_for_topic(
+    legislation_sources: list[str | dict],
+    compression_query: str | None,
+) -> list[str]:
+    """Fetch and compress content for a single topic's sources."""
     if not legislation_sources:
-        return {**inputs, "legislation_content": []}
+        return []
 
     # Separate pre-fetched (PDF) content from URLs that still need fetching.
     pre_fetched: dict[str, str] = {}  # url → already-compressed content
@@ -58,7 +55,7 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
             ordered_urls.append(url)
 
     if not ordered_urls:
-        return {**inputs, "legislation_content": []}
+        return []
 
     # Cap URLs to avoid context overflow in downstream LLM calls.
     ordered_urls = ordered_urls[:CONTENT_MAX_URLS]
@@ -69,10 +66,6 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
     # cities compress harder. Floors/ceilings prevent degenerate splits.
     per_url_cap = CONTENT_TOTAL_CHAR_BUDGET // max(len(ordered_urls), 1)
     per_url_cap = max(CONTENT_MIN_CHARS_PER_URL, min(CONTENT_MAX_CHARS_PER_URL, per_url_cap))
-
-    # Query passed to the compressor so it can rank segments by topical relevance.
-    # Falls back to unconditional scoring when no topic is set (e.g., city-wide runs).
-    compression_query = (inputs.get("topic") or "").strip() or None
 
     # Fetch non-PDF URLs via Tavily Extract.
     url_to_content: dict[str, str] = {}
@@ -110,9 +103,7 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
             raw = raw[:per_url_cap]
         return compress_text(raw, query=compression_query)
 
-    # Compress newly-fetched pages in parallel. Raw text is capped at
-    # per_url_cap before compression to keep the downstream LLM context
-    # bounded.
+    # Compress newly-fetched pages in parallel.
     compress_targets = [u for u in ordered_urls if u in url_to_content and u not in pre_fetched]
     compressed_by_url: dict[str, str] = {}
     if compress_targets:
@@ -129,13 +120,10 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
     legislation_content: list[str] = []
     for url in ordered_urls:
         if url in pre_fetched:
-            # Already compressed by the web_search tool — pass through.
             legislation_content.append(pre_fetched[url])
         elif url in compressed_by_url:
             legislation_content.append(compressed_by_url[url])
         elif url in url_to_content:
-            # Parallel compression failed; fall back to the capped raw text
-            # so the downstream context stays bounded.
             raw = url_to_content[url]
             if len(raw) > per_url_cap:
                 raw = raw[:per_url_cap]
@@ -154,7 +142,22 @@ def run_content_retrieval(inputs: ChainData) -> ChainData:
         pre_fetched_count,
     )
 
-    return {**inputs, "legislation_content": legislation_content}
+    return legislation_content
+
+
+def run_content_retrieval(inputs: ChainData) -> ChainData:
+    """Fetch and compress legislation page content for each topic."""
+    topic_results = inputs.get("topic_results", {})
+
+    for topic, result in topic_results.items():
+        legislation_sources = result.get("legislation_sources", [])
+        compression_query = topic.strip() or None
+
+        logger.info("Content retrieval for topic: %s (%d sources)", topic, len(legislation_sources))
+        legislation_content = _retrieve_for_topic(legislation_sources, compression_query)
+        result["legislation_content"] = legislation_content
+
+    return {**inputs, "topic_results": topic_results}
 
 
 content_retrieval_chain = RunnableLambda(run_content_retrieval)

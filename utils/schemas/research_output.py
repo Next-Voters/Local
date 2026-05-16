@@ -24,7 +24,7 @@ class TopicFinding(BaseModel):
     """One issue investigated within a broader topic."""
 
     issue: str
-    summary: list[str] = Field(default_factory=list) 
+    summary: list[str] = Field(default_factory=list)
     supporting_urls: list[str] = Field(default_factory=list)
 
 
