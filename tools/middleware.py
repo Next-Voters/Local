@@ -4,7 +4,7 @@ Provides reusable middleware components that can be composed with
 create_agent's middleware parameter.
 """
 
-from typing import Any, Callable
+from typing import Callable
 
 from langchain.agents.middleware import (
     AgentMiddleware,
