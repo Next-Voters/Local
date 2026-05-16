@@ -14,8 +14,8 @@ from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from config.constants import WEB_SEARCH_MAX_RESULTS
-from utils.tools._helpers import ok, err
-from utils.tools.utils.tavily import search_legislation
+from tools._helpers import ok, err
+from tools.services.tavily import search_legislation
 
 logger = logging.getLogger(__name__)
 

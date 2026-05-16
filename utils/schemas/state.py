@@ -5,6 +5,7 @@ from typing import NotRequired, Annotated, TypedDict
 import operator
 
 from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
 from utils.schemas.pydantic import (
     ReflectionEntry,
     SourceAssessment,
@@ -15,21 +16,51 @@ from utils.schemas.pydantic import (
 class BaseAgentState(TypedDict):
     """Shared state fields that every ReAct agent inherits.
 
-    Agent-specific states extend this with their own fields.
+    Uses ``add_messages`` reducer (not ``operator.add``) to support
+    LangGraph's ``RemoveMessage`` pattern needed by delete_note.
     """
 
-    messages: Annotated[list[BaseMessage], operator.add]
+    messages: Annotated[list[BaseMessage], add_messages]
     reflection_list: NotRequired[Annotated[list[ReflectionEntry], operator.add]]
 
 
-class LegislationFinderState(BaseAgentState):
-    """Agent-specific state for the legislation finder agent."""
+class ResearcherState(BaseAgentState):
+    """State for the researcher subagent. Scoped to one issue within a topic.
+
+    Notes are NOT a state field — they live in ``messages`` as SystemMessage
+    objects with slug-based IDs. delete_note uses RemoveMessage to remove them.
+    """
 
     region: NotRequired[str]
-    # Items are plain URL strings for HTML pages or dicts with pre-fetched
-    # PDF content: {"url": str, "content": str, "source": "pdf"}.
+    topic: NotRequired[str]
+    issue: NotRequired[str]
     legislation_sources: NotRequired[Annotated[list[str | dict], operator.add]]
-    # Per-source outputs produced by the supervisor's parallel sub-agent pass.
+    research_summary: NotRequired[str]
+
+
+class LeadResearcherState(TypedDict):
+    """State for the lead researcher supervisor. Operates on one region + one topic.
+
+    Does not extend BaseAgentState — the supervisor delegates and validates,
+    it does not reflect.
+    """
+
+    messages: Annotated[list[BaseMessage], add_messages]
+    region: NotRequired[str]
+    topic: NotRequired[str]
+    legislation_sources: NotRequired[Annotated[list[str | dict], operator.add]]
+    source_assessments: NotRequired[list[dict]]
+    final_summary: NotRequired[str]
+    researcher_invocation_count: NotRequired[Annotated[int, operator.add]]
+
+
+# Legacy state — kept for downstream pipeline nodes (content_retrieval,
+# note_taker, summary_writer) which are not being changed in this refactor.
+class LegislationFinderState(BaseAgentState):
+    """Agent-specific state for the legislation finder agent (legacy)."""
+
+    region: NotRequired[str]
+    legislation_sources: NotRequired[Annotated[list[str | dict], operator.add]]
     source_assessments: NotRequired[list[SourceAssessment]]
 
 

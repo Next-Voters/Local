@@ -78,8 +78,8 @@ Each region runs as an independent **ECS Fargate task**:
 ### Core Components
 
 **Agents** (`agents/`):
-- `base_agent_template.py`: Shared ReAct agent template (imports reflection tool from `utils/tools`)
-- `legislation_finder.py`: Discovers legislation sources via web search
+- `researcher_agent.py`: ReAct subagent for issue-level legislation discovery, built with `create_agent` from `langchain.agents`
+- `lead_researcher_agent.py`: Supervisor agent that dispatches researchers per issue, validates sources, and synthesizes findings
 
 **Pipeline Nodes** (`pipelines/node/`):
 - `legislation_finder.py`: Calls the ReAct agent, returns URLs
@@ -97,13 +97,22 @@ Each region runs as an independent **ECS Fargate task**:
 - `content/`: Content processing and evaluation utilities
   - `compressor.py`: Context compression via `compress_text(text, rate, query)`. Retains the first `rate * len(text)` characters (head truncation). The `query` parameter is reserved for future query-aware pruning. Short content (<`MIN_CHARS_TO_COMPRESS` chars) bypasses compression.
   - `source_reliability.py`: Domain-level source reliability scoring and filtering — classifies URLs into government, legislative, news, other, or blocked tiers.
-- `tools/`: Agent tool adapters with LangChain `@tool` decorators, re-exported via `__init__.py` (e.g., `reflection.py`, `web_search.py`). Contains a `utils/` subdirectory for service modules (`tavily.py`, `extract.py`). Google Calendar integration uses a remote MCP server (`https://gcal.mintmcp.com/mcp`) loaded via `langchain-mcp-adapters` in `agents/legislation_finder.py`.
+
+**Tools** (`tools/` — root level):
+- `web_search.py`: Web search tool using Tavily for legislation discovery
+- `reflection.py`: Reflection tool for agent self-evaluation during ReAct loops
+- `notes.py`: `note_taker` (records notes as SystemMessage with slug ID) and `delete_note` (removes via RemoveMessage)
+- `researcher_agent_tool.py`: Agent-as-tool wrapper that invokes the researcher subagent in an isolated context window
+- `source_validator.py`: Parallel URL validation using structured mini-LLM calls
+- `middleware.py`: `ReflectionMiddleware` for injecting reflection history before each LLM call
+- `_helpers.py`: `ok()`/`err()` Command builders shared by all tools
+- `services/tavily.py`, `services/extract.py`: Direct SDK wrappers for Tavily Search and Extract
 - `supabase_client.py`: Loads supported regions and topics from Supabase
 - `sqs_client.py`: SQS factory (`get_sqs_client()`) and message helpers (`enqueue_report()`, `enqueue_pipeline_failure()`)
 
 **Configuration** (`config/`):
 - `system_prompts/`: Prompt templates for agents and nodes
-- `constants.py`: Pipeline-wide tuneable constants: `COMPRESSION_RATE`, `MIN_CHARS_TO_COMPRESS`, `MAX_REFLECTION_ENTRIES`, `AGENT_RECURSION_LIMIT`
+- `constants.py`: Pipeline-wide tuneable constants: `COMPRESSION_RATE`, `MIN_CHARS_TO_COMPRESS`, `MAX_REFLECTION_ENTRIES`, `AGENT_RECURSION_LIMIT`, `MAX_RESEARCHER_INVOCATIONS`
 
 ### Data Flow Example
 
@@ -139,9 +148,9 @@ Each region runs as an independent **ECS Fargate task**:
 - Short content (<`MIN_CHARS_TO_COMPRESS=1_000` chars) bypasses compression entirely
 
 **Direct SDK calls for external services**
-- Tavily search functions live in `utils/tools/utils/tavily.py` as direct SDK calls; tool adapters in `utils/tools/` wrap them for LangGraph
-- Google Calendar uses a remote MCP server (`https://gcal.mintmcp.com/mcp`); `create_event` tool is loaded via `langchain-mcp-adapters` at agent build time in `agents/legislation_finder.py`
-- Tool adapters live in `utils/tools/` with re-exports via `__init__.py`; agents import them rather than defining tools inline
+- Tavily search functions live in `tools/services/tavily.py` as direct SDK calls; tool adapters in `tools/` wrap them for LangGraph
+- Google Calendar uses a remote MCP server (`https://gcal.mintmcp.com/mcp`); `create_event` tool is loaded via `langchain-mcp-adapters` at agent build time in `tools/researcher_agent_tool.py`
+- Tool adapters live in `tools/` with re-exports via `__init__.py`; agents import them rather than defining tools inline
 
 **Rate limiting: bounded agent iterations**
 - Pipeline nodes pass `AGENT_RECURSION_LIMIT=40` (from `config/constants.py`) at `ainvoke()` time via the `config` dict, preventing unbounded tool call loops that caused 429 Too Many Requests errors
@@ -190,10 +199,13 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 - Unstructured: use `get_llm()` → invoke with list of messages
 
 **Agents**
-- Inherit from `BaseReActAgent` (see `agents/base_agent_template.py`)
-- Tools are defined in `utils/tools/` and re-exported via `utils/tools/__init__.py`; agents import them (e.g., `from utils.tools import web_search`)
-- Each tool adapter calls service functions from `utils/tools/utils/tavily.py` and returns a LangGraph `Command` for state updates
-- Agent builds a LangGraph StateGraph with `call_model` and `tool_node` nodes; `recursion_limit` is applied at invoke-time via the config dict (not at compile-time)
+- Built with `create_agent` from `langchain.agents` (see `agents/researcher_agent.py` for pattern)
+- Tools live in `tools/` and are imported directly; agents compose their tool list at build time (e.g., `from tools import web_search, reflection_tool`)
+- Each tool adapter calls service functions from `tools/services/tavily.py` and returns a LangGraph `Command` for state updates
+- `ReflectionMiddleware` in `tools/middleware.py` injects reflection history before each LLM call; add it to the `middleware` list when building agents that use `reflection_tool`
+- The agent-as-tool pattern (`tools/researcher_agent_tool.py`) wraps a subagent invocation as a tool, giving it an isolated context window
+- `response_format` on `create_agent` enforces structured output schemas (e.g., `ResearcherOutput`, `LeadResearcherOutput`)
+- `recursion_limit` is applied at invoke-time via the config dict; `MAX_RESEARCHER_INVOCATIONS` limits subagent dispatch at the tool level via `InjectedState`
 
 **Error Handling**
 - Classifier output parse failures → reject all sources (safe fallback)
@@ -241,9 +253,9 @@ docker run -e NV_CITY=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUP
 5. Document in `docs/ARCHITECTURE.md`
 
 **Adding an agent tool**:
-1. Create the tool adapter function in `utils/tools/` with the LangChain `@tool` decorator, then re-export it from `utils/tools/__init__.py`
-2. If the tool needs an external service, add the business logic as a plain function in the appropriate service module (e.g., `utils/tools/utils/tavily.py`) or create a new one
-3. Import the tool in the agent file (e.g., `from utils.tools import web_search`) and pass it to the agent constructor; it is automatically included in `ToolNode`
+1. Create the tool function in `tools/` with the LangChain `@tool` decorator; return a `Command` using `ok()`/`err()` from `tools/_helpers.py`
+2. If the tool needs an external service, add the business logic in `tools/services/` (e.g., `tools/services/tavily.py`)
+3. Import the tool in the agent file (e.g., `from tools import web_search`) and include it in the `tools` list when calling `create_agent`
 
 **Changing LLM model or config**:
 1. Update `utils/llm/config.py:DEFAULT_LLM_CONFIG`

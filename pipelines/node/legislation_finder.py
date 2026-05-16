@@ -13,9 +13,10 @@ def run_legislation_finder(inputs: ChainData) -> ChainData:
     """Run the legislation finder agent for the given city."""
     city = inputs.get("region", "Unknown")
 
-    from agents.legislation_finder import invoke_legislation_finder
+    from agents.lead_researcher_agent import invoke_legislation_finder
 
-    agent_result = asyncio.run(invoke_legislation_finder(city))
+    topic = inputs.get("topic", "")
+    agent_result = asyncio.run(invoke_legislation_finder(city, topic=topic))
 
     # Extract sources collected by web_search tool calls.
     # Sources are either plain URL strings or dicts {"url", "content", "source"} for

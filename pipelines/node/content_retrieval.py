@@ -18,7 +18,7 @@ from config.constants import (
     CONTENT_TOTAL_CHAR_BUDGET,
 )
 from utils.content.compressor import compress_text
-from utils.tools.utils.extract import extract_url_content
+from tools.services.extract import extract_url_content
 from utils.schemas import ChainData
 
 logger = logging.getLogger(__name__)
