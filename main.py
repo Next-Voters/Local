@@ -6,6 +6,8 @@ import sys
 
 from dotenv import load_dotenv
 
+from utils.logger import get_logger
+
 load_dotenv()
 
 
@@ -19,9 +21,9 @@ def run_container_mode(city: str) -> int:
     from pipelines.nv_local import run_pipeline
     from utils.report.storage import save_report
     from utils.sqs_client import enqueue_pipeline_failure, enqueue_report
-    from utils.supabase_client import get_supported_regions_from_db, get_supported_topics
+    from utils.supabase_client import get_supported_regions_from_db
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
 
     # Validate region before spending API credits
     try:
@@ -34,22 +36,24 @@ def run_container_mode(city: str) -> int:
         logger.error(f"Region '{city}' not in supported regions: {supported_regions}")
         return 1
 
-    try:
-        topics = get_supported_topics()
-    except Exception as e:
-        logger.error(f"Failed to get supported topics: {e}")
-        return 1
-
-    logger.info(f"Running pipeline for region={city}, topics={topics}")
+    logger.info(f"Running pipeline for region={city} (all topics)")
     failures = []
     report_id: int | None = None
 
-    for topic in topics:
+    # Pipeline handles all topics internally
+    try:
+        result = run_pipeline(city)
+    except Exception as e:
+        logger.error(f"Pipeline failed for {city}: {e}")
+        enqueue_pipeline_failure(city, [f"{city} (pipeline invocation)"], None)
+        return 1
+
+    # Save per-topic results to Supabase
+    topic_results = result.get("topic_results", {})
+    for topic, topic_data in topic_results.items():
         label = f"{city} ({topic})"
         try:
-            logger.info(f"Starting pipeline: {label}")
-            result = run_pipeline(city, topic)
-            rid = save_report(city, topic, result)
+            rid = save_report(city, topic, topic_data)
             if rid is None:
                 logger.error(f"Failed to save report: {label}")
                 failures.append(label)
@@ -57,7 +61,7 @@ def run_container_mode(city: str) -> int:
                 report_id = rid
                 logger.info(f"Completed: {label} (report_id={report_id})")
         except Exception as e:
-            logger.error(f"Failed: {label} — {e}")
+            logger.error(f"Failed to save report: {label} — {e}")
             failures.append(label)
 
     # Enqueue SQS message so the Email Lambda can send the report

@@ -3,10 +3,11 @@
 All functions are synchronous (use TavilyClient).
 """
 
-import logging
 import os
 
-logger = logging.getLogger(__name__)
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 from dotenv import load_dotenv
 

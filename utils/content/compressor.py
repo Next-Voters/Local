@@ -4,12 +4,12 @@ Delegates to the CompactPrompt-based pruner for intelligent token-level
 compression.  Falls back to head truncation if the pruner fails.
 """
 
-import logging
 from typing import Optional
 
 from config.constants import COMPRESSION_RATE, MIN_CHARS_TO_COMPRESS
+from utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def compress_text(

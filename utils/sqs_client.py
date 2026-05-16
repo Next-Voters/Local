@@ -5,16 +5,17 @@ pipeline failure metadata (dead letter queue) to Amazon SQS.
 """
 
 import json
-import logging
 import os
 from datetime import datetime, timezone
 
 import boto3
 from dotenv import load_dotenv
 
+from utils.logger import get_logger
+
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _sqs_client = None
 

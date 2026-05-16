@@ -11,11 +11,12 @@ Tiers:
     0 (blocked)       — Known low-quality domains (blogs, social media, petitions)
 """
 
-import logging
 import re
 from urllib.parse import urlparse
 
-logger = logging.getLogger(__name__)
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Tier 1 — Government domain patterns

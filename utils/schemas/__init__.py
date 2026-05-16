@@ -8,16 +8,28 @@ from utils.schemas.pydantic import (
 )
 from utils.schemas.state import (
     BaseAgentState,
-    LegislationFinderState,
     ChainData,
+    LeadResearcherState,
+    LegislationFinderState,
+    ResearcherState,
+    TopicResult,
+)
+from utils.schemas.research_output import (
+    LeadResearcherOutput,
+    TopicFinding,
 )
 
 __all__ = [
+    "BaseAgentState",
+    "ChainData",
+    "LeadResearcherOutput",
+    "LeadResearcherState",
+    "LegislationFinderState",
     "LegislationItem",
     "ReflectionEntry",
+    "ResearcherState",
     "SourceAssessment",
+    "TopicFinding",
+    "TopicResult",
     "WriterOutput",
-    "BaseAgentState",
-    "LegislationFinderState",
-    "ChainData",
 ]

@@ -5,7 +5,6 @@ per-token log-probabilities from the echo response.  Each token's dynamic
 self-information is computed as  I_dyn(t) = -log_e(P(t|ctx)) / ln(2).
 """
 
-import logging
 import math
 import os
 import time
@@ -20,10 +19,11 @@ from config.constants import (
     TOGETHER_MODEL,
     TOGETHER_TIMEOUT,
 )
+from utils.logger import get_logger
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _TOGETHER_API_URL = "https://api.together.xyz/v1/completions"
 _LN2 = math.log(2)

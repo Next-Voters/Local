@@ -5,24 +5,32 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from utils.supabase_client import get_supported_regions_from_db, get_supported_topics
+from utils.supabase_client import get_supported_regions_from_db
 from pipelines.node.content_retrieval import content_retrieval_chain
-from pipelines.node.legislation_finder import legislation_finder_chain
+from pipelines.node.run_agent_team import run_agent_team_chain
 from pipelines.node.note_taker import note_taker_chain
 from pipelines.node.summary_writer import summary_writer_chain
 
 chain = (
-    legislation_finder_chain
+    run_agent_team_chain
     | content_retrieval_chain
-    | note_taker_chain.with_retry()
-    | summary_writer_chain.with_retry()
+    | note_taker_chain
+    | summary_writer_chain
 )
 
 
-def run_pipeline(region: str, topic: str = "") -> dict[str, Any]:
-    """Execute the LangGraph chain for the given region and topic."""
+def run_pipeline(region: str) -> dict[str, Any]:
+    """Execute the pipeline for the given region across all topics.
 
-    return chain.invoke({"region": region, "topic": topic})
+    Topics are fetched from Supabase inside the legislation_finder node.
+
+    Args:
+        region: Region name (must be in Supabase regions table).
+
+    Returns:
+        ChainData dict with ``topic_results`` containing per-topic outputs.
+    """
+    return chain.invoke({"region": region})
 
 
 def main() -> None:
@@ -41,29 +49,22 @@ def main() -> None:
         choices=regions,
         help="Region to run the NV Local pipeline for.",
     )
-    # Load supported topics for CLI choices
-    try:
-        topics = get_supported_topics()
-    except Exception as e:
-        print(f"Error: Failed to get supported topics from Supabase: {e}")
-        raise
-
-    parser.add_argument(
-        "-t",
-        "--topic",
-        choices=topics,
-        default="",
-        help="Topic to scope the pipeline research to.",
-    )
     args = parser.parse_args()
-    label = f"{args.region}" + (f" ({args.topic})" if args.topic else "")
-    print(f"Running NV Local pipeline for {label}...")
-    result = run_pipeline(args.region, args.topic)
-    summary = result.get("legislation_summary")
-    if summary and summary.items:
-        for item in summary.items:
-            print(f"\n{item.header}")
-            for bullet in item.bullets:
-                print(f"  - {bullet}")
-    else:
-        print("No legislation items found.")
+
+    print(f"Running NV Local pipeline for {args.region} (all topics)...")
+    result = run_pipeline(args.region)
+
+    # Print per-topic results
+    topic_results = result.get("topic_results", {})
+    for topic, topic_data in topic_results.items():
+        print(f"\n{'='*60}")
+        print(f"Topic: {topic}")
+        print(f"{'='*60}")
+        summary = topic_data.get("legislation_summary")
+        if summary and summary.items:
+            for item in summary.items:
+                print(f"\n{item.header}")
+                for bullet in item.bullets:
+                    print(f"  - {bullet}")
+        else:
+            print("No legislation items found.")

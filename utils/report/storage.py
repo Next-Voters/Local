@@ -1,12 +1,12 @@
 """Save pipeline reports to the Supabase reports and report_headers tables."""
 
-import logging
 from datetime import date
 from typing import Any
 
+from utils.logger import get_logger
 from utils.supabase_client import get_supabase_client
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Module-level cache: topic_name -> topic_id
 _topic_ids: dict[str, int] = {}

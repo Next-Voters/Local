@@ -5,11 +5,12 @@ that should be pruned or preserved as a whole.  This prevents the pruner
 from splitting phrases like "Ordinance 2024-157" or "City Council".
 """
 
-import logging
 from functools import lru_cache
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)
