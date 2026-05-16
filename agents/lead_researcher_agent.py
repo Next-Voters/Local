@@ -1,11 +1,9 @@
-"""Lead researcher — supervisor agent that orchestrates researchers and validators.
+"""Lead researcher — supervisor agent that orchestrates researchers.
 
 The lead researcher:
 1. Identifies specific issues within a topic to investigate
 2. Calls researcher_agent_tool for each issue (isolated context per call)
-3. Deduplicates collected URLs
-4. Calls source_validator_tool on all candidates
-5. Produces a final synthesis as LeadResearcherOutput (enforced by response_format)
+3. Produces a render-ready publication state as LeadResearcherOutput (enforced by response_format)
 """
 
 from __future__ import annotations
@@ -15,7 +13,6 @@ import logging
 from langchain.agents import create_agent
 
 from tools.researcher_agent_tool import researcher_agent_tool
-from tools.source_validator import source_validator_tool
 from utils.llm import get_llm
 from utils.schemas import LeadResearcherOutput, LeadResearcherState
 
@@ -33,7 +30,7 @@ def build_lead_researcher_agent(prompt: str):
     """
     return create_agent(
         model=get_llm(),
-        tools=[researcher_agent_tool, source_validator_tool],
+        tools=[researcher_agent_tool],
         system_prompt=prompt,
         state_schema=LeadResearcherState,
         response_format=LeadResearcherOutput,

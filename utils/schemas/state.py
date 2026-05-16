@@ -41,7 +41,7 @@ class ResearcherState(BaseAgentState):
 class LeadResearcherState(TypedDict):
     """State for the lead researcher supervisor. Operates on one region + one topic.
 
-    Does not extend BaseAgentState — the supervisor delegates and validates,
+    Does not extend BaseAgentState — the supervisor delegates and synthesizes,
     it does not reflect.
     """
 
@@ -49,8 +49,6 @@ class LeadResearcherState(TypedDict):
     region: NotRequired[str]
     topic: NotRequired[str]
     legislation_sources: NotRequired[Annotated[list[str | dict], operator.add]]
-    source_assessments: NotRequired[list[dict]]
-    final_summary: NotRequired[str]
     researcher_invocation_count: NotRequired[Annotated[int, operator.add]]
 
 
@@ -71,6 +69,8 @@ class TopicResult(TypedDict):
     legislation_content: NotRequired[list[str]]
     notes: NotRequired[str]
     legislation_summary: NotRequired[WriterOutput]
+    findings: NotRequired[list[dict]]
+    overview: NotRequired[str]
 
 
 class ChainData(TypedDict):
