@@ -16,7 +16,6 @@ Core runtime secrets:
 - `TAVILY_API_KEY`: Tavily Search + Extract (web search and content retrieval)
 - `SUPABASE_URL`, `SUPABASE_KEY`: City/topic config + report storage
 - `TOGETHER_API_KEY`: Dynamic self-information scoring for context compression
-- `GLAMA_API_KEY`: MCP for Google Calendar event creation
 
 Container-specific:
 

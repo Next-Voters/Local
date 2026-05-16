@@ -12,7 +12,7 @@ Summarize only what is concretely established from the conversation history:
 - How many pieces of legislation have been found?
 - What source tiers are represented (official government, news, unknown)?
 - Is the evidence base sufficient to meet the 2-source minimum per finding?
-- Have any upcoming legislative events (meetings, hearings, votes) been mentioned in sources? If so, have they been recorded via `create_event`?
+- Have any upcoming legislative events (meetings, hearings, votes) been mentioned in sources?
 
 Do not infer or speculate beyond what the history explicitly shows.
 
@@ -31,7 +31,7 @@ Classify each gap by severity:
 
 **MINOR** — worth noting, low urgency:
 - Search queries haven't covered all relevant terminology (e.g., "ordinance" vs. "resolution" vs. "motion")
-- Upcoming legislative events (meetings, hearings, votes) were mentioned in sources but not yet recorded via `create_event`
+- Upcoming legislative events (meetings, hearings, votes) were mentioned in sources but not yet noted
 
 Each gap must name a specific, correctable problem. Reject vague gaps like "research could be stronger."
 
@@ -58,7 +58,7 @@ Return a single raw JSON object. No markdown fences, no preamble.
 
 ## Edge Cases
 - If the conversation history is empty or contains no research activity yet: set `reflection` to `"No research conducted yet."`, `gaps_identified` to `[{{"severity": "CRITICAL", "gap": "No searches have been run — research has not started."}}]`, and `next_action` to the first recommended search query.
-- If all gaps are resolved, findings meet acceptance criteria, and any discovered events have been recorded via `create_event`: set `next_action` to `"Research complete — compile final output."` and `gaps_identified` to an empty array.
+- If all gaps are resolved and findings meet acceptance criteria: set `next_action` to `"Research complete — compile final output."` and `gaps_identified` to an empty array.
 
 ## Mindful Reflection — Do Not Repeat Yourself
 

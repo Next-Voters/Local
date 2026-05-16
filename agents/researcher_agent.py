@@ -16,7 +16,6 @@ from datetime import datetime, timedelta
 
 from langchain.agents import create_agent
 
-from config.constants import AGENT_RECURSION_LIMIT
 from config.system_prompts import legislation_finder_sys_prompt
 from tools import web_search, reflection_tool, note_taker, delete_note
 from tools.middleware import ReflectionMiddleware
@@ -24,9 +23,6 @@ from tools.handoff import handoff
 from utils.llm import get_llm
 
 logger = logging.getLogger(__name__)
-
-_TARGET_GCAL_TOOLS = {"create_event", "get_calendar_events", "update_event"}
-
 
 # ---------------------------------------------------------------------------
 # Dynamic system prompt
@@ -49,17 +45,13 @@ def _researcher_system_prompt(state: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_researcher_agent(gcal_tools: list):
+def build_researcher_agent():
     """Build the researcher agent scoped to one issue within a topic.
-
-    Args:
-        gcal_tools: Google Calendar MCP tools (may be empty if MCP failed).
 
     Returns:
         A compiled LangGraph agent graph.
     """
-    selected = [t for t in gcal_tools if t.name in _TARGET_GCAL_TOOLS]
-    tools = [reflection_tool, web_search, note_taker, delete_note, handoff] + selected
+    tools = [reflection_tool, web_search, note_taker, delete_note, handoff] 
 
     return create_agent(
         model=get_llm(),

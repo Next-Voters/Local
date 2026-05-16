@@ -150,7 +150,6 @@ Each region runs as an independent **ECS Fargate task**:
 
 **Direct SDK calls for external services**
 - Tavily search functions live in `tools/services/tavily.py` as direct SDK calls; tool adapters in `tools/` wrap them for LangGraph
-- Google Calendar uses a remote MCP server (`https://gcal.mintmcp.com/mcp`); `create_event` tool is loaded via `langchain-mcp-adapters` at agent build time in `tools/researcher_agent_tool.py`
 - Tool adapters live in `tools/` with re-exports via `__init__.py`; agents import them rather than defining tools inline
 
 **Rate limiting: bounded agent iterations**
@@ -182,7 +181,6 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 - `TAVILY_API_KEY`: Tavily Search + Extract (web search and content retrieval)
 - `SUPABASE_URL`, `SUPABASE_KEY`: Region/topic config + report storage
 - `TOGETHER_API_KEY`: Dynamic self-information scoring for context compression
-- `GLAMA_API_KEY`: MCP for Google Calendar event creation
 
 **Container-specific**:
 - `NV_CITY`: Region to run pipeline for (set by Dispatcher Lambda)
@@ -228,7 +226,7 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 **Docker**:
 ```bash
 docker build -f docker/Dockerfile -t nv-local .
-docker run -e NV_CITY=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUPABASE_URL=... -e SUPABASE_KEY=... -e TOGETHER_API_KEY=... -e GLAMA_API_KEY=... nv-local
+docker run -e NV_CITY=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUPABASE_URL=... -e SUPABASE_KEY=... -e TOGETHER_API_KEY=... nv-local
 ```
 
 **AWS (ECS Fargate)**:
