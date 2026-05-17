@@ -93,6 +93,6 @@ async def researcher_agent_tool(
                 ToolMessage(content=summary, tool_call_id=tool_call_id)
             ],
             "legislation_sources": sources,
-            "researcher_invocation_count": 1, 
+            "researcher_invocation_count": 1,
         }
     )

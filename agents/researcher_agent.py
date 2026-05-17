@@ -49,7 +49,7 @@ def build_researcher_agent():
     Returns:
         A compiled LangGraph agent graph.
     """
-    tools = [reflection_tool, web_search, note_taker, delete_note, handoff] 
+    tools = [reflection_tool, web_search, note_taker, delete_note, handoff]
 
     return create_agent(
         model=get_llm(),
@@ -60,3 +60,5 @@ def build_researcher_agent():
         middleware=[ReflectionMiddleware()],
         name="researcher",
     )
+
+
