@@ -16,7 +16,7 @@ from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
-from agents.researcher_agent import build_researcher_agent, run_researcher
+from agents.researcher_agent import build_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT, MAX_RESEARCHER_INVOCATIONS
 from tools._helpers import ok
 from utils.schemas import ResearcherOutput
@@ -70,8 +70,8 @@ async def researcher_agent_tool(
     # --- Normal execution ---
     graph = build_researcher_agent()
 
-    invoke_kwargs = {
-        "input": {
+    discovery_state = await graph.ainvoke(
+        input={
             "region": city,
             "topic": topic,
             "issue": issue,
@@ -83,9 +83,8 @@ async def researcher_agent_tool(
                 )
             ],
         },
-        "config": {"recursion_limit": AGENT_RECURSION_LIMIT},
-    }
-    discovery_state = await run_researcher(graph, invoke_kwargs)
+        config={"recursion_limit": AGENT_RECURSION_LIMIT},
+    )
 
     # Extract structured output (enforced by response_format=ResearcherOutput)
     structured: ResearcherOutput | None = discovery_state.get("structured_response")
