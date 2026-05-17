@@ -114,19 +114,16 @@ def get_supported_topics() -> list[str]:
         raise
 
 
-def get_region_details(region: str) -> dict | None:
-    """Look up city-specific legislative context from the region_details table.
-
-    Returns a single row dict with governing_body, official_website,
-    legislative_portal, legistar_domain, legislative_terms, etc.,
-    or None if the region has no entry.
-    """
+def get_region_description(region: str) -> str | None:
+    """Look up the region description from the regions table."""
     client = get_supabase_client()
     response = (
-        client.table("region_details")
-        .select("*")
+        client.table("regions")
+        .select("description")
         .eq("region", region)
         .maybe_single()
         .execute()
     )
-    return response.data
+    if response.data:
+        return response.data.get("description")
+    return None
