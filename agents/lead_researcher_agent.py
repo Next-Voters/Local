@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from langchain.agents import create_agent
 
-from tools.city_details import city_details_tool
+from tools.region_details import region_details_tool
 from tools.researcher_agent_tool import researcher_agent_tool
 from utils.llm import get_llm
 from utils.schemas import LeadResearcherOutput, LeadResearcherState
@@ -27,7 +27,7 @@ def build_lead_researcher_agent(prompt: str):
     """
     return create_agent(
         model=get_llm(),
-        tools=[city_details_tool, researcher_agent_tool],
+        tools=[region_details_tool, researcher_agent_tool],
         system_prompt=prompt,
         state_schema=LeadResearcherState,
         response_format=LeadResearcherOutput,
