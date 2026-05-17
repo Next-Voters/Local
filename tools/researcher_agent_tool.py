@@ -15,9 +15,8 @@ from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
-from agents.researcher_agent import build_researcher_agent, run_researcher
+from agents.researcher_agent import build_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT, MAX_RESEARCHER_INVOCATIONS
-from utils.schemas import ResearcherOutput
 
 
 # ---------------------------------------------------------------------------
@@ -63,11 +62,10 @@ async def researcher_agent_tool(
             }
         )
 
-    # --- Normal execution ---
-    graph = build_researcher_agent()
+    agent = build_researcher_agent()
 
-    invoke_kwargs = {
-        "input": {
+    agent_response = await agent.ainvoke(
+        input={
             "region": city,
             "topic": topic,
             "issue": issue,
@@ -79,19 +77,15 @@ async def researcher_agent_tool(
                 )
             ],
         },
-        "config": {"recursion_limit": AGENT_RECURSION_LIMIT},
-    }
-    discovery_state = await run_researcher(graph, invoke_kwargs)
+        config={"recursion_limit": AGENT_RECURSION_LIMIT},
+    )
 
-    # Extract structured output (enforced by response_format=ResearcherOutput)
-    structured: ResearcherOutput | None = discovery_state.get("structured_response")
-    if structured:
-        summary = structured.research_summary
-        sources = structured.legislation_sources
-    else:
-        # Fallback for recursion-limit exits (partial state, no structured response)
-        summary = "Researcher hit recursion limit; partial results returned."
-        sources = discovery_state.get("legislation_sources", [])
+    # Extract from state written by handoff tool
+    summary = agent_response.get("research_summary")
+    sources = agent_response.get("legislation_sources", [])
+
+    if not summary:
+        summary = "Researcher returned no summary for this issue."
 
     return Command(
         update={
@@ -99,6 +93,6 @@ async def researcher_agent_tool(
                 ToolMessage(content=summary, tool_call_id=tool_call_id)
             ],
             "legislation_sources": sources,
-            "researcher_invocation_count": 1,  # adds 1 via operator.add reducer
+            "researcher_invocation_count": 1, 
         }
     )
