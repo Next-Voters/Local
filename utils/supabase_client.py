@@ -112,3 +112,21 @@ def get_supported_topics() -> list[str]:
     except Exception as e:
         logger.error(f"Failed to query supported topics from Supabase: {e}")
         raise
+
+
+def get_region_details(region: str) -> dict | None:
+    """Look up city-specific legislative context from the region_details table.
+
+    Returns a single row dict with governing_body, official_website,
+    legislative_portal, legistar_domain, legislative_terms, etc.,
+    or None if the region has no entry.
+    """
+    client = get_supabase_client()
+    response = (
+        client.table("region_details")
+        .select("*")
+        .eq("region", region)
+        .maybe_single()
+        .execute()
+    )
+    return response.data

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 
 from langchain.agents import create_agent
 
-from config.system_prompts import legislation_finder_sys_prompt
+from config.system_prompts import legislation_finder_sys_prompt, legislation_finder_task_sys_prompt
 from tools import web_search, reflection_tool, note_taker, delete_note
 from tools.middleware import ReflectionMiddleware
 from tools.handoff import handoff
@@ -28,14 +28,25 @@ from utils.schemas import ResearcherOutput, ResearcherState
 
 
 def _researcher_system_prompt(state: dict) -> str:
-    """Format the researcher system prompt with runtime city/topic/issue/dates."""
-    return legislation_finder_sys_prompt.format(
+    """Format the researcher system prompt with runtime city/topic/issue/dates.
+
+    When search_guidance is present (passed from the lead researcher via
+    city_details_tool), uses the targeted task prompt that replaces generic
+    Step 2 boilerplate with city-specific search strategy. Otherwise falls
+    back to the original generic prompt.
+    """
+    base_kwargs = dict(
         input_city=state.get("region", "Unknown"),
         topic=state.get("topic", ""),
         issue=state.get("issue", ""),
         last_week_date=(datetime.today() - timedelta(days=7)).strftime("%B %d, %Y"),
         today=datetime.today().strftime("%B %d, %Y"),
     )
+    if state.get("search_guidance"):
+        return legislation_finder_task_sys_prompt.format(
+            **base_kwargs, search_guidance=state["search_guidance"],
+        )
+    return legislation_finder_sys_prompt.format(**base_kwargs)
 
 
 # ---------------------------------------------------------------------------
