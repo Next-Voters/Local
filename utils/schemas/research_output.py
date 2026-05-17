@@ -21,16 +21,44 @@ class ResearcherOutput(BaseModel):
 
 
 class TopicFinding(BaseModel):
-    """One issue investigated within a broader topic."""
+    """One legislation section structured for email rendering."""
 
-    issue: str
-    summary: list[str] = Field(default_factory=list)
-    supporting_urls: list[str] = Field(default_factory=list)
+    headline: str = Field(
+        description="Short, punchy section title suitable for an email header. "
+        "Written like a news alert — specific and human, not a government memo."
+    )
+    priority: int = Field(
+        default=1,
+        description="Rendering priority (1 = highest impact). Determines section order.",
+    )
+    summary: list[str] = Field(
+        default_factory=list,
+        description="Short bullet points (one sentence each) stating a single fact or action. "
+        "Max 4 bullets. No paragraphs.",
+    )
+    expanded_content: str = Field(
+        default="",
+        description="1-2 sentence expanded context for readers who want more detail. "
+        "Kept short for mobile readability.",
+    )
+    sources: list[str] = Field(
+        default_factory=list,
+        description="Source URLs backing this finding.",
+    )
 
 
 class LeadResearcherOutput(BaseModel):
-    """Final validated synthesis returned by the lead researcher."""
+    """Structured publication state — render-ready for the HTML email report."""
 
-    final_summary: str
-    findings: list[TopicFinding] = Field(default_factory=list)
-    legislation_sources: list[str] = Field(default_factory=list)
+    overview: str = Field(
+        description="One-sentence topic overview suitable for a TOC entry or email subject.",
+    )
+    findings: list[TopicFinding] = Field(
+        default_factory=list,
+        description="Legislation sections ordered by priority (1 = highest). "
+        "Each finding is a self-contained report section.",
+    )
+    legislation_sources: list[str] = Field(
+        default_factory=list,
+        description="Flat deduplicated list of all source URLs across findings.",
+    )

@@ -8,7 +8,6 @@ execution, enforced via InjectedState counter.
 
 from __future__ import annotations
 
-import logging
 from typing import Annotated
 
 from langchain_core.messages import HumanMessage, ToolMessage
@@ -18,10 +17,6 @@ from langgraph.types import Command
 
 from agents.researcher_agent import build_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT, MAX_RESEARCHER_INVOCATIONS
-from tools._helpers import ok
-from utils.schemas import ResearcherOutput
-
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -67,10 +62,9 @@ async def researcher_agent_tool(
             }
         )
 
-    # --- Normal execution ---
-    graph = build_researcher_agent()
+    agent = build_researcher_agent()
 
-    discovery_state = await graph.ainvoke(
+    agent_response = await agent.ainvoke(
         input={
             "region": city,
             "topic": topic,
@@ -86,15 +80,12 @@ async def researcher_agent_tool(
         config={"recursion_limit": AGENT_RECURSION_LIMIT},
     )
 
-    # Extract structured output (enforced by response_format=ResearcherOutput)
-    structured: ResearcherOutput | None = discovery_state.get("structured_response")
-    if structured:
-        summary = structured.research_summary
-        sources = structured.legislation_sources
-    else:
-        # Fallback for recursion-limit exits (partial state, no structured response)
-        summary = "Researcher hit recursion limit; partial results returned."
-        sources = discovery_state.get("legislation_sources", [])
+    # Extract from state written by handoff tool
+    summary = agent_response.get("research_summary")
+    sources = agent_response.get("legislation_sources", [])
+
+    if not summary:
+        summary = "Researcher returned no summary for this issue."
 
     return Command(
         update={
@@ -102,6 +93,6 @@ async def researcher_agent_tool(
                 ToolMessage(content=summary, tool_call_id=tool_call_id)
             ],
             "legislation_sources": sources,
-            "researcher_invocation_count": 1,  # adds 1 via operator.add reducer
+            "researcher_invocation_count": 1,
         }
     )

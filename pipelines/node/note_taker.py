@@ -3,16 +3,16 @@
 Generates dense research notes per topic from the retrieved legislation content.
 """
 
-import logging
 from functools import lru_cache
 
 from langchain_core.runnables import RunnableLambda
 
 from utils.schemas import ChainData
 from utils.llm import get_llm
+from utils.logger import get_logger
 from config.system_prompts import note_taker_sys_prompt
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)

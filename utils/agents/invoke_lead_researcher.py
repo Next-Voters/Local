@@ -16,11 +16,10 @@ from utils.schemas.research_output import LeadResearcherOutput
 async def invoke_lead_researcher_agent(city: str, topic: str = "") -> dict:
     """Run the lead researcher for a city + topic.
 
-    Public entry point consumed by ``pipelines/node/legislation_finder.py``.
+    Public entry point consumed by ``pipelines/node/run_agent_team.py``.
 
     Returns:
-        Dict with ``legislation_sources``, ``findings``, ``final_summary``,
-        and optionally ``source_assessments``.
+        Dict with ``legislation_sources``, ``findings``, and ``overview``.
     """
     prompt = lead_researcher_sys_prompt.format(
         city=city,
@@ -38,7 +37,7 @@ async def invoke_lead_researcher_agent(city: str, topic: str = "") -> dict:
                     content=(
                         f"Research {topic} legislation for {city}. "
                         f"Identify specific issues within this topic, dispatch "
-                        f"researchers for each, then validate and synthesize findings."
+                        f"researchers for each, then synthesize findings."
                     )
                 )
             ],
@@ -52,11 +51,12 @@ async def invoke_lead_researcher_agent(city: str, topic: str = "") -> dict:
         return {
             "legislation_sources": structured.legislation_sources,
             "findings": [f.model_dump() for f in structured.findings],
-            "final_summary": structured.final_summary,
+            "overview": structured.overview,
         }
 
     # Fallback for edge cases (recursion limit, unexpected termination)
     return {
         "legislation_sources": result.get("legislation_sources", []),
-        "source_assessments": result.get("source_assessments", []),
+        "findings": [],
+        "overview": "",
     }

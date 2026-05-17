@@ -7,7 +7,6 @@ tool) are passed through without re-fetching or re-compressing.
 Processes each topic's sources independently via ``topic_results``.
 """
 
-import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import httpx
@@ -20,10 +19,11 @@ from config.constants import (
     CONTENT_TOTAL_CHAR_BUDGET,
 )
 from utils.content.compressor import compress_text
+from utils.logger import get_logger
 from tools.services.extract import extract_url_content
 from utils.schemas import ChainData
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _retrieve_for_topic(

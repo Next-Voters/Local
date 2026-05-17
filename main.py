@@ -6,6 +6,8 @@ import sys
 
 from dotenv import load_dotenv
 
+from utils.logger import get_logger
+
 load_dotenv()
 
 
@@ -21,7 +23,7 @@ def run_container_mode(city: str) -> int:
     from utils.sqs_client import enqueue_pipeline_failure, enqueue_report
     from utils.supabase_client import get_supported_regions_from_db
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
 
     # Validate region before spending API credits
     try:

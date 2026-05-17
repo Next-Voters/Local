@@ -6,7 +6,6 @@ fetching and PDF extraction are handled downstream by content_retrieval.
 """
 
 import asyncio
-import logging
 from typing import Annotated, Any
 
 from langchain_core.tools import tool, InjectedToolCallId
@@ -16,8 +15,9 @@ from langgraph.types import Command
 from config.constants import WEB_SEARCH_MAX_RESULTS
 from tools._helpers import ok, err
 from tools.services.tavily import search_legislation
+from utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _extract_search_results(raw_results: dict[str, Any]) -> list[dict[str, Any]]:

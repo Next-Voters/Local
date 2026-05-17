@@ -1,13 +1,13 @@
 import asyncio
-import logging
 
 from langchain_core.runnables import RunnableLambda
 
 from utils.schemas import ChainData
 from utils.content.source_reliability import filter_sources
+from utils.logger import get_logger
 from utils.supabase_client import get_supported_topics
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def gather_citations(all_sources: list[str | dict]) -> list[str | dict]:
@@ -57,12 +57,35 @@ def run_agent_team(inputs: ChainData) -> ChainData:
         all_sources = agent_result.get("legislation_sources", [])
         legislation_sources = gather_citations(all_sources)
 
+        # Build accepted URL set for pruning
+        accepted_urls = {
+            (s["url"] if isinstance(s, dict) else s) for s in legislation_sources
+        }
+
+        # Prune findings: remove rejected sources, drop empty findings
+        raw_findings = agent_result.get("findings", [])
+        pruned_findings = []
+        for f in raw_findings:
+            f["sources"] = [u for u in f.get("sources", []) if u in accepted_urls]
+            if f["sources"]:
+                pruned_findings.append(f)
+
+        # No-sources case: override overview
+        overview = agent_result.get("overview", "")
+        if not legislation_sources:
+            overview = f"No validated legislation found for {topic} in {city}."
+            pruned_findings = []
+
         logger.info(
-            "Lead researcher for %s / %s: %d accepted / %d raw",
-            city, topic, len(legislation_sources), len(all_sources),
+            "Lead researcher for %s / %s: %d accepted / %d raw, %d findings",
+            city, topic, len(legislation_sources), len(all_sources), len(pruned_findings),
         )
 
-        topic_results[topic] = {"legislation_sources": legislation_sources}
+        topic_results[topic] = {
+            "legislation_sources": legislation_sources,
+            "findings": pruned_findings,
+            "overview": overview,
+        }
 
     return {
         "region": city,

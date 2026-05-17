@@ -8,7 +8,6 @@ regardless of their position in the document.
 Reference: *CompactPrompt* (arXiv:2510.18043)
 """
 
-import logging
 from typing import Optional
 
 from config.constants import (
@@ -20,8 +19,9 @@ from config.constants import (
 from utils.content.dynamic_scorer import DynamicScoringError, get_dynamic_scores
 from utils.content.phrase_grouper import get_phrase_groups
 from utils.content.static_scorer import score_tokens as static_score_tokens
+from utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def prune_text(

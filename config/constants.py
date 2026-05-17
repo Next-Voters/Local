@@ -75,7 +75,7 @@ MAX_REFLECTION_ENTRIES: int = 5
 # Prevents unbounded tool-call loops in multi-city runs.
 AGENT_RECURSION_LIMIT: int = 40
 
-# Maximum number of researcher_agent_tool calls per lead researcher execution.
-# Hard ceiling enforced at the tool level via InjectedState counter.
+# Maximum researcher subagent invocations per lead-researcher execution.
+# Aligns with the "2-4 specific issues" guidance in the lead researcher prompt.
 MAX_RESEARCHER_INVOCATIONS: int = 4
 

@@ -7,14 +7,15 @@ This module provides functions to query Supabase for:
 """
 
 import os
-import logging
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+from utils.logger import get_logger
+
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def get_supabase_client() -> Client:
