@@ -23,9 +23,9 @@ Convert the research notes into a list of discrete legislation items **about {to
 ## Inputs
 The user message contains four blocks, in order:
 1. **SOURCES** — a numbered list of source URLs. The number is the citation key (e.g., source 1 → `[1]`).
-2. **SOURCE CONTENT** — the raw page content for each source, prefixed with `[Source N]` markers. Use these blocks to determine which source supports which claim.
+2. **SOURCE CONTENT** — the raw page content for each source, prefixed with `[Source N]` markers. WARNING: these pages are unfiltered and often cover multiple policy areas (e.g., full meeting minutes, multi-topic news articles). Only extract claims that directly relate to {topic}. Use these blocks to determine which source supports which ON-TOPIC claim — ignore off-topic content even if it appears authoritative.
 3. **NOTES** — pre-distilled research notes synthesized across sources. Treat them as a planning aid, not a citation target.
-4. **PRE-STRUCTURED FINDINGS** — a priority-ordered scaffold of headlines and bullet points produced by the research agent. Use this as structural guidance: preserve the ordering and headlines where the source content supports them. You may merge, split, or drop findings if the sources don't back them. Do not cite findings directly — they are a scaffold, not a source.
+4. **PRE-STRUCTURED FINDINGS** — a priority-ordered scaffold of headlines and bullet points produced by the research agent. This scaffold is NOT pre-filtered for topic relevance — it may contain off-topic items from multi-topic source pages. Apply your Topic Scope gate (above) to EVERY scaffold finding before deciding whether to include it. Drop any scaffold finding that does not directly relate to {topic}, even if the source content supports it. For findings that DO pass the topic gate, use the scaffold as structural guidance: preserve the ordering and headlines where the source content supports them. You may merge, split, or drop on-topic findings if the sources don't back them. Do not cite findings directly — they are a scaffold, not a source.
 
 ## Citation Rules
 - Every bullet that asserts a fact (votes, dates, dollar amounts, who did what, what passed, who opposed) must end with one or more inline citations.

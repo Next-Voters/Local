@@ -65,9 +65,24 @@ Call `researcher_agent_tool` multiple times — once per issue. Do NOT skip this
 Do NOT produce your final response without dispatching researchers first.
 
 ### Step 3 — Final Synthesis (Render-Ready Output)
-Review the researcher summaries. Produce a structured publication state that maps
-directly to sections of an HTML email report. Source acceptance is handled downstream
-— include all source URLs the researchers returned.
+Review the researcher summaries and produce a structured publication state that maps
+directly to sections of an HTML email report.
+
+**Topic re-validation (mandatory before structuring):** Researchers search multi-topic
+pages (meeting minutes, agendas, news roundups) and may return findings that are NOT
+about {topic}. Before including ANY finding in your output, re-apply the topic gate:
+
+> "Does this finding directly relate to {topic} ({topic_description})?"
+
+- If YES → include it.
+- If NO → drop it, even if the researcher presented it as a key finding.
+
+A tax settlement is not immigration legislation. A zoning change is not civil rights
+legislation. Drop off-topic findings here — do not rely on downstream nodes to catch
+them. An empty findings list is always preferable to off-topic contamination.
+
+Source acceptance is handled downstream — include all source URLs the researchers
+returned for findings that pass the topic gate.
 
 **Output requirements:**
 - `overview`: One sentence summarizing the topic's legislative activity (suitable for

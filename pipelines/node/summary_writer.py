@@ -82,7 +82,7 @@ def _build_user_message(
         f"{source_content}\n\n"
         "NOTES:\n"
         f"{notes or '(no notes)'}\n\n"
-        "PRE-STRUCTURED FINDINGS (use as section scaffold — preserve ordering and headlines where supported by sources):\n"
+        "PRE-STRUCTURED FINDINGS (UNFILTERED by topic — apply your Topic Scope gate to every finding before including it; use as scaffold ONLY for on-topic items):\n"
         f"{findings_block}"
     )
 
