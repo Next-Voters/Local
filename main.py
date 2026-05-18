@@ -18,7 +18,7 @@ def run_container_mode(city: str) -> int:
         0 on success, 1 if any topic failed, any report failed to save,
         or the SQS enqueue failed.
     """
-    from pipelines.nv_local import run_pipeline
+    from pipelines.nv_local import chain
     from utils.report.storage import save_report
     from utils.sqs_client import enqueue_pipeline_failure, enqueue_report
     from utils.supabase_client import get_supported_regions_from_db
@@ -42,7 +42,7 @@ def run_container_mode(city: str) -> int:
 
     # Pipeline handles all topics internally
     try:
-        result = run_pipeline(city)
+        result = chain.invoke({"region": city})
     except Exception as e:
         logger.error(f"Pipeline failed for {city}: {e}")
         enqueue_pipeline_failure(city, [f"{city} (pipeline invocation)"], None)
