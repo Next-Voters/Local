@@ -72,5 +72,32 @@ class ReflectionMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse:
-        """Async version — delegates to sync since reflection logic is CPU-only."""
-        return self.wrap_model_call(request, handler)
+        """Async version — must await the async handler."""
+        reflection_list: list[ReflectionEntry] = (
+            getattr(request.state, "reflection_list", None)
+            or request.state.get("reflection_list", [])
+            if hasattr(request.state, "get")
+            else []
+        )
+
+        if not reflection_list:
+            return await handler(request)
+
+        if len(reflection_list) > MAX_REFLECTION_ENTRIES:
+            reflection_list = reflection_list[-MAX_REFLECTION_ENTRIES:]
+
+        entries = []
+        for r in reflection_list:
+            gaps = ", ".join(r.gaps_identified) if r.gaps_identified else "None"
+            entries.append(
+                f"- {r.reflection}\n  Gaps: {gaps}\n  Next action: {r.next_action}"
+            )
+        reflection_section = _REFLECTION_PREAMBLE + "\n".join(entries)
+
+        if request.system_message:
+            new_content = reflection_section + "\n\n" + request.system_message.content
+            new_sys = SystemMessage(content=new_content)
+        else:
+            new_sys = SystemMessage(content=reflection_section)
+
+        return await handler(request.override(system_message=new_sys))
