@@ -87,7 +87,7 @@ def run_cli_mode() -> None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    nv_city = os.getenv("NV_CITY")
+    nv_city = os.getenv("NV_CITY") or os.getenv("REGION")
 
     if nv_city:
         sys.exit(run_container_mode(nv_city))
