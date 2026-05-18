@@ -38,6 +38,7 @@ def _researcher_system_prompt(state: dict) -> str:
     base_kwargs = dict(
         input_city=state.get("region", "Unknown"),
         topic=state.get("topic", ""),
+        topic_description=state.get("topic_description", ""),
         issue=state.get("issue", ""),
         last_week_date=(datetime.today() - timedelta(days=7)).strftime("%B %d, %Y"),
         today=datetime.today().strftime("%B %d, %Y"),

@@ -30,6 +30,7 @@ async def researcher_agent_tool(
     topic: str,
     issue: str,
     search_guidance: str,
+    topic_description: str,
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
@@ -46,6 +47,9 @@ async def researcher_agent_tool(
         search_guidance: City-specific search strategy (governing body name,
             official domains, portal URLs, terminology) for the researcher
             to use when crafting web search queries.
+        topic_description: Definition of the topic (e.g., 'Federal, state,
+            and local immigration policy') so the researcher can filter
+            for topic relevance.
     """
     # --- HARD RUNTIME LIMIT ---
     current_count = state.get("researcher_invocation_count", 0)
@@ -71,6 +75,7 @@ async def researcher_agent_tool(
         "topic": topic,
         "issue": issue,
         "search_guidance": search_guidance,
+        "topic_description": topic_description,
     })
 
     agent_response = await agent.ainvoke(

@@ -13,7 +13,9 @@ from utils.schemas.research_output import LeadResearcherOutput
 # ---------------------------------------------------------------------------
 
 
-async def invoke_lead_researcher_agent(city: str, topic: str = "") -> dict:
+async def invoke_lead_researcher_agent(
+    city: str, topic: str = "", topic_description: str = "",
+) -> dict:
     """Run the lead researcher for a city + topic.
 
     Public entry point consumed by ``pipelines/node/run_agent_team.py``.
@@ -24,6 +26,7 @@ async def invoke_lead_researcher_agent(city: str, topic: str = "") -> dict:
     prompt = lead_researcher_sys_prompt.format(
         city=city,
         topic=topic,
+        topic_description=topic_description,
         max_invocations=MAX_RESEARCHER_INVOCATIONS,
     )
     agent = build_lead_researcher_agent(prompt)

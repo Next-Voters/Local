@@ -50,9 +50,13 @@ def run_agent_team(inputs: ChainData) -> ChainData:
 
     topic_results: dict[str, dict] = {}
 
-    for topic in topics:
+    for topic_info in topics:
+        topic = topic_info["topic_name"]
+        topic_description = topic_info.get("description", "")
         logger.info("Running lead researcher for %s / %s", city, topic)
-        agent_result = asyncio.run(invoke_lead_researcher_agent(city, topic=topic))
+        agent_result = asyncio.run(
+            invoke_lead_researcher_agent(city, topic=topic, topic_description=topic_description)
+        )
 
         all_sources = agent_result.get("legislation_sources", [])
         legislation_sources = gather_citations(all_sources)

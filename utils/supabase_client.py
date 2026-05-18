@@ -79,12 +79,11 @@ def get_supported_regions_from_db() -> list[str]:
         raise
 
 
-def get_supported_topics() -> list[str]:
-    """
-    Query the supported_topics table from Supabase.
+def get_supported_topics() -> list[dict[str, str]]:
+    """Query the supported_topics table from Supabase.
 
     Returns:
-        List of topic names sorted alphabetically
+        List of dicts with 'topic_name' and 'description', sorted alphabetically.
 
     Raises:
         ValueError: If Supabase credentials are missing
@@ -96,13 +95,20 @@ def get_supported_topics() -> list[str]:
         logger.info("Querying supported topics from Supabase...")
         response = (
             client.table("supported_topics")
-            .select("topic_name")
+            .select("topic_name, description")
             .order("topic_name")
             .execute()
         )
 
-        topics = [row["topic_name"] for row in response.data]
-        logger.info(f"Successfully retrieved {len(topics)} supported topics: {topics}")
+        topics = [
+            {"topic_name": row["topic_name"], "description": row.get("description", "")}
+            for row in response.data
+        ]
+        logger.info(
+            "Successfully retrieved %d supported topics: %s",
+            len(topics),
+            [t["topic_name"] for t in topics],
+        )
 
         return topics
 
