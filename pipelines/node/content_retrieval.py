@@ -9,7 +9,6 @@ Processes each topic's sources independently via ``topic_results``.
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import httpx
 from langchain_core.runnables import RunnableLambda
 
 from config.constants import (
@@ -79,23 +78,6 @@ def _retrieve_for_topic(
             )
         except Exception as e:
             logger.warning("Tavily Extract failed: %s", e)
-
-        # Fallback to markdown.new for URLs Tavily didn't return.
-        for url in urls_to_fetch:
-            if url in url_to_content:
-                continue
-            try:
-                response = httpx.get(
-                    f"https://markdown.new/{url}",
-                    timeout=30,
-                    follow_redirects=True,
-                )
-                response.raise_for_status()
-                text = response.text.strip()
-                if text:
-                    url_to_content[url] = text
-            except (httpx.HTTPError, httpx.InvalidURL, ValueError):
-                pass
 
     def _compress_capped(url: str) -> str:
         raw = url_to_content[url]
