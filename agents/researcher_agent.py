@@ -54,8 +54,12 @@ def _researcher_system_prompt(state: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_researcher_agent():
+def build_researcher_agent(state: dict):
     """Build the researcher agent scoped to one issue within a topic.
+
+    Args:
+        state: Runtime state dict with region, topic, issue, and
+            optionally search_guidance — used to format the system prompt.
 
     Returns:
         A compiled LangGraph agent graph.
@@ -65,7 +69,7 @@ def build_researcher_agent():
     return create_agent(
         model=get_llm(),
         tools=tools,
-        system_prompt=_researcher_system_prompt,
+        system_prompt=_researcher_system_prompt(state),
         state_schema=ResearcherState,
         response_format=ResearcherOutput,
         middleware=[ReflectionMiddleware()],

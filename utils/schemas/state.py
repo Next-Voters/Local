@@ -32,9 +32,6 @@ class ResearcherState(BaseAgentState):
     """
 
     region: NotRequired[str]
-    topic: NotRequired[str]
-    issue: NotRequired[str]
-    search_guidance: NotRequired[str]
     legislation_sources: NotRequired[Annotated[list[str | dict], operator.add]]
     research_summary: NotRequired[str]
 

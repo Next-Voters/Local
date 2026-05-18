@@ -66,14 +66,16 @@ async def researcher_agent_tool(
             }
         )
 
-    agent = build_researcher_agent()
+    agent = build_researcher_agent({
+        "region": city,
+        "topic": topic,
+        "issue": issue,
+        "search_guidance": search_guidance,
+    })
 
     agent_response = await agent.ainvoke(
         input={
             "region": city,
-            "topic": topic,
-            "issue": issue,
-            "search_guidance": search_guidance,
             "messages": [
                 HumanMessage(
                     content=(
