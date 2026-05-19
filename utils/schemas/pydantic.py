@@ -46,6 +46,10 @@ class LegislationItem(BaseModel):
     bullets: list[str] = Field(
         description="List of cited bullet points explaining what happened"
     )
+    cited_sources: list[int] = Field(
+        default_factory=list,
+        description="List of source numbers (from the SOURCES list) cited by this item's bullets",
+    )
 
 
 class WriterOutput(BaseModel):

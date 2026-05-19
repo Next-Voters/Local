@@ -62,6 +62,7 @@ The user message contains three blocks, in order:
 Produce a list of items. Each item has:
 - **header**: One-line factual headline (e.g., "Council passes good cause eviction package")
 - **bullets**: A list of short, cited sentences — each one a standalone fact about this item.
+- **cited_sources**: A list of the source numbers (integers) cited by this item's bullets. For example, if the bullets cite [1] and [3], set cited_sources to [1, 3].
 
 Aim for 2-6 items. Each item = one distinct action or decision.
 
@@ -90,11 +91,13 @@ Item 1:
   - "The city council passed a new zoning law for downtown, 7-2.[1]"
   - "Any new development has to set aside at least 20% of its units as affordable housing.[1]"
   - "It takes effect January 1.[1]"
+- cited_sources: [1]
 
 Item 2:
 - header: "Main Street's getting $5M in road fixes"
 - bullets:
   - "Council approved $5M to repair roads on Main Street.[2]"
+- cited_sources: [2]
 
 ---
 

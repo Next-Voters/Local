@@ -4,6 +4,7 @@ from datetime import date
 from typing import Any
 
 from utils.logger import get_logger
+from utils.schemas.pydantic import LegislationItem
 from utils.supabase_client import get_supabase_client
 
 logger = get_logger(__name__)
@@ -37,16 +38,43 @@ def _get_topic_id(topic_name: str) -> int | None:
         return None
 
 
+def _resolve_source_urls(item: LegislationItem, source_urls: list[str]) -> list[str]:
+    """Resolve 1-based cited_sources indices to actual URLs."""
+    urls = []
+    for num in item.cited_sources:
+        idx = num - 1
+        if 0 <= idx < len(source_urls):
+            urls.append(source_urls[idx])
+    return urls
+
+
+def _normalize_source_urls(legislation_sources) -> list[str]:
+    """Extract URLs from legislation_sources (mix of strings and dicts)."""
+    urls: list[str] = []
+    for source in legislation_sources or []:
+        if isinstance(source, dict):
+            url = source.get("url", "").strip()
+        elif isinstance(source, str):
+            url = source.strip()
+        else:
+            url = ""
+        if url:
+            urls.append(url)
+    return urls
+
+
 def save_report(region: str, topic_name: str, result: dict[str, Any]) -> int | None:
     """Save a pipeline result to the reports and report_headers tables.
 
     Upserts a parent report row for (region, today), then upserts one
-    report_headers row per legislation item with the topic and bullets.
+    report_headers row per legislation item with the topic, bullets,
+    and resolved source URLs.
 
     Args:
         region: Region name (FK to regions).
         topic_name: Topic name string (resolved to topic_id).
-        result: Pipeline result dict containing 'legislation_summary' (WriterOutput).
+        result: Pipeline result dict containing 'legislation_summary' (WriterOutput)
+                and 'legislation_sources' (list of URLs/dicts).
 
     Returns:
         The report ID (bigint PK) on success, or None on failure.
@@ -62,6 +90,8 @@ def save_report(region: str, topic_name: str, result: dict[str, Any]) -> int | N
     topic_id = _get_topic_id(topic_name)
     if topic_id is None:
         return None
+
+    source_urls = _normalize_source_urls(result.get("legislation_sources"))
 
     try:
         client = get_supabase_client()
@@ -89,6 +119,7 @@ def save_report(region: str, topic_name: str, result: dict[str, Any]) -> int | N
                 "topic_id": topic_id,
                 "header": item.header,
                 "bullets": item.bullets,
+                "sources": _resolve_source_urls(item, source_urls),
             }
             for item in summary.items
         ]
