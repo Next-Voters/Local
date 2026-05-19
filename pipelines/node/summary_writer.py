@@ -86,7 +86,10 @@ def research_summary_writer(inputs: ChainData) -> ChainData:
             .replace("{topic_description}", topic_description)
         )
 
-        logger.info("Generating summary for topic: %s", topic)
+        logger.info(
+            "Generating summary for topic: %s (notes=%d chars, sources=%d, content_blocks=%d)",
+            topic, len(notes or ""), len(source_urls), len(legislation_content),
+        )
         ai_generated_summary: WriterOutput = _get_model().invoke(
             [
                 {"role": "system", "content": formatted_prompt},
@@ -95,8 +98,10 @@ def research_summary_writer(inputs: ChainData) -> ChainData:
         )
 
         if ai_generated_summary is None or not ai_generated_summary.items:
+            logger.warning("Writer returned no items for topic: %s", topic)
             result["legislation_summary"] = None
         else:
+            logger.info("Writer produced %d items for topic: %s", len(ai_generated_summary.items), topic)
             result["legislation_summary"] = ai_generated_summary
 
     return {**inputs, "topic_results": topic_results}

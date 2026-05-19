@@ -77,7 +77,12 @@ def save_report(region: str, topic_name: str, result: dict[str, Any]) -> int | N
 
         report_id = report_response.data[0]["id"]
 
-        # Upsert one report_headers row per legislation item
+        # Delete stale headers for this (report_id, topic_id) before inserting
+        client.table("report_headers").delete().eq(
+            "report_id", report_id
+        ).eq("topic_id", topic_id).execute()
+
+        # Insert one report_headers row per legislation item
         headers = [
             {
                 "report_id": report_id,
@@ -88,10 +93,7 @@ def save_report(region: str, topic_name: str, result: dict[str, Any]) -> int | N
             for item in summary.items
         ]
 
-        client.table("report_headers").upsert(
-            headers,
-            on_conflict="report_id,topic_id,header",
-        ).execute()
+        client.table("report_headers").insert(headers).execute()
 
         logger.info(
             f"Saved report: {region}/{topic_name} "

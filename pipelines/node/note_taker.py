@@ -50,6 +50,7 @@ def research_note_taker(inputs: ChainData) -> ChainData:
         )
 
         result["notes"] = str(ai_generated_notes.content)
+        logger.info("Notes for topic %s: %d chars", topic, len(result["notes"]))
 
     return {**inputs, "topic_results": topic_results}
 
