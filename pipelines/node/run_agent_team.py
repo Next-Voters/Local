@@ -54,14 +54,15 @@ def run_agent_team(inputs: ChainData) -> ChainData:
         topic = topic_info["topic_name"]
         topic_description = topic_info.get("description", "")
         logger.info("Running lead researcher for %s / %s", city, topic)
+
+        lead_researcher_states = dict(city=city, topic=topic, topic_description=topic_description)
         agent_result = asyncio.run(
-            invoke_lead_researcher_agent(city, topic=topic, topic_description=topic_description)
+            invoke_lead_researcher_agent(**lead_researcher_states)
         )
 
         all_sources = agent_result.get("legislation_sources", [])
         legislation_sources = gather_citations(all_sources)
 
-        # Build accepted URL set for pruning
         accepted_urls = {
             (s["url"] if isinstance(s, dict) else s) for s in legislation_sources
         }
@@ -73,12 +74,8 @@ def run_agent_team(inputs: ChainData) -> ChainData:
             f["sources"] = [u for u in f.get("sources", []) if u in accepted_urls]
             if f["sources"]:
                 pruned_findings.append(f)
-
-        # No-sources case: override overview
+                
         overview = agent_result.get("overview", "")
-        if not legislation_sources:
-            overview = f"No validated legislation found for {topic} in {city}."
-            pruned_findings = []
 
         logger.info(
             "Lead researcher for %s / %s: %d accepted / %d raw, %d findings",

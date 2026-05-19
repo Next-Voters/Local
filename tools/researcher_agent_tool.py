@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
-from agents.researcher_agent import build_researcher_agent
-from config.constants import AGENT_RECURSION_LIMIT, MAX_RESEARCHER_INVOCATIONS
+from config.constants import MAX_RESEARCHER_INVOCATIONS
+from utils.agents import invoke_researcher_agent
 
 
 # ---------------------------------------------------------------------------
@@ -70,34 +70,16 @@ async def researcher_agent_tool(
             }
         )
 
-    agent = build_researcher_agent({
-        "region": city,
-        "topic": topic,
-        "issue": issue,
-        "search_guidance": search_guidance,
-        "topic_description": topic_description,
-    })
-
-    agent_response = await agent.ainvoke(
-        input={
-            "region": city,
-            "messages": [
-                HumanMessage(
-                    content=(
-                        f"Research this specific issue for {city} ({topic}): {issue}"
-                    )
-                )
-            ],
-        },
-        config={"recursion_limit": AGENT_RECURSION_LIMIT},
+    result = await invoke_researcher_agent(
+        city=city,
+        topic=topic,
+        issue=issue,
+        search_guidance=search_guidance,
+        topic_description=topic_description,
     )
 
-    # Extract from state written by handoff tool
-    summary = agent_response.get("research_summary")
-    sources = agent_response.get("legislation_sources", [])
-
-    if not summary:
-        summary = "Researcher returned no summary for this issue."
+    summary = result["research_summary"]
+    sources = result["legislation_sources"]
 
     return Command(
         update={

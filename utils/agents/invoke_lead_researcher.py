@@ -3,8 +3,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage
 
 from agents.lead_researcher_agent import build_lead_researcher_agent
-from config.constants import AGENT_RECURSION_LIMIT, MAX_RESEARCHER_INVOCATIONS
-from config.system_prompts import lead_researcher_sys_prompt
+from config.constants import AGENT_RECURSION_LIMIT
 from utils.schemas.research_output import LeadResearcherOutput
 
 
@@ -23,13 +22,12 @@ async def invoke_lead_researcher_agent(
     Returns:
         Dict with ``legislation_sources``, ``findings``, and ``overview``.
     """
-    prompt = lead_researcher_sys_prompt.format(
-        city=city,
+    state = dict(
+        region=city,
         topic=topic,
         topic_description=topic_description,
-        max_invocations=MAX_RESEARCHER_INVOCATIONS,
     )
-    agent = build_lead_researcher_agent(prompt)
+    agent = build_lead_researcher_agent(state)
 
     result = await agent.ainvoke(
         {

@@ -8,19 +8,43 @@ The lead researcher:
 
 from __future__ import annotations
 
+from config.constants import MAX_RESEARCHER_INVOCATIONS
 from langchain.agents import create_agent
 
 from tools.region_details import region_details_tool
 from tools.researcher_agent_tool import researcher_agent_tool
 from utils.llm import get_llm
 from utils.schemas import LeadResearcherOutput, LeadResearcherState
+from config.system_prompts import lead_researcher_sys_prompt
 
 
-def build_lead_researcher_agent(prompt: str):
+# ---------------------------------------------------------------------------
+# Dynamic system prompt
+# ---------------------------------------------------------------------------
+
+
+def _lead_researcher_system_prompt(state: dict) -> str:
+    """Format the lead researcher system prompt with runtime city/topic values."""
+    base_kwargs = dict(
+        city=state.get("region", "Unknown"),
+        topic=state.get("topic", ""),
+        topic_description=state.get("topic_description", ""),
+        max_invocations=MAX_RESEARCHER_INVOCATIONS,
+    )
+    return lead_researcher_sys_prompt.format(**base_kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Agent builder
+# ---------------------------------------------------------------------------
+
+
+def build_lead_researcher_agent(state: dict):
     """Build the lead researcher supervisor agent.
 
     Args:
-        prompt: Pre-formatted system prompt (city/topic already resolved).
+        state: Runtime state dict with region, topic, and
+            topic_description — used to format the system prompt.
 
     Returns:
         A compiled LangGraph agent graph.
@@ -28,7 +52,7 @@ def build_lead_researcher_agent(prompt: str):
     return create_agent(
         model=get_llm(),
         tools=[region_details_tool, researcher_agent_tool],
-        system_prompt=prompt,
+        system_prompt=_lead_researcher_system_prompt(state),
         state_schema=LeadResearcherState,
         response_format=LeadResearcherOutput,
         name="lead_researcher",

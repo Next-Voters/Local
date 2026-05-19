@@ -22,11 +22,6 @@ from tools.handoff import handoff
 from utils.llm import get_llm
 from utils.schemas import ResearcherOutput, ResearcherState
 
-# ---------------------------------------------------------------------------
-# Dynamic system prompt
-# ---------------------------------------------------------------------------
-
-
 def _researcher_system_prompt(state: dict) -> str:
     """Format the researcher system prompt with runtime city/topic/issue/dates.
 
@@ -48,11 +43,6 @@ def _researcher_system_prompt(state: dict) -> str:
             **base_kwargs, search_guidance=state["search_guidance"],
         )
     return legislation_finder_sys_prompt.format(**base_kwargs)
-
-
-# ---------------------------------------------------------------------------
-# Agent builder
-# ---------------------------------------------------------------------------
 
 
 def build_researcher_agent(state: dict):
