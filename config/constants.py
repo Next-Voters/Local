@@ -1,24 +1,12 @@
 """Pipeline-wide configuration constants."""
 
 # ---------------------------------------------------------------------------
-# Content retrieval — adaptive caps
+# Web search — inline content extraction
 # ---------------------------------------------------------------------------
 
-# Hard ceiling on URLs fed to the content-retrieval step. Tavily Extract
-# itself can handle 20 URLs per batch; the tighter cap here bounds the
-# downstream LLM context, not the API.
-CONTENT_MAX_URLS: int = 10
-
-# Total character budget for raw (pre-compression) content across all URLs
-# in a single pipeline run. Per-URL allocation scales this by URL count.
-# At COMPRESSION_RATE=0.4 a 150K-char raw budget compresses to ~60K chars
-# (~15K tokens) for the note-taker — well inside the 272K-token input cap.
-CONTENT_TOTAL_CHAR_BUDGET: int = 150_000
-
-# Per-URL floor and ceiling to keep a small-city run from starving and a
-# content-rich URL from monopolizing the budget.
-CONTENT_MIN_CHARS_PER_URL: int = 5_000
-CONTENT_MAX_CHARS_PER_URL: int = 40_000
+# Raw content cap per URL before compression inside web_search.
+# At COMPRESSION_RATE=0.4, yields ~12K chars of compressed content per URL.
+WEB_SEARCH_PER_URL_CHAR_CAP: int = 30_000
 
 # Default Tavily Search results per query.
 WEB_SEARCH_MAX_RESULTS: int = 5

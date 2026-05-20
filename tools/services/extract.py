@@ -1,6 +1,6 @@
 """Tavily URL content extraction via the tavily-python SDK.
 
-Sync function using TavilyClient. Used by the content_retrieval pipeline node.
+Sync function using TavilyClient. Called by the web_search tool.
 """
 
 from __future__ import annotations

@@ -59,7 +59,7 @@ There is no dedicated test suite. Quick validation:
 The pipeline is a **fixed, deterministic sequence** of nodes composed via LangGraph. This makes the execution path predictable and operational.
 
 ```
-legislation_finder → content_retrieval → note_taker → summary_writer
+run_agent_team → note_taker → summary_writer
 ```
 
 **Key design**: Each node is a thin `RunnableSequence` that transforms pipeline state (`ChainData` TypedDict).
@@ -82,8 +82,7 @@ Each region runs as an independent **ECS Fargate task**:
 - `lead_researcher_agent.py`: Supervisor agent that dispatches researchers per issue, validates sources, and synthesizes findings
 
 **Pipeline Nodes** (`pipelines/node/`):
-- `legislation_finder.py`: Calls the ReAct agent, returns URLs
-- `content_retrieval.py`: Fetches page content via Tavily Extract (with `markdown.new` fallback)
+- `run_agent_team.py`: Runs a lead researcher agent per topic, filters sources, extracts `legislation_content` from content dicts
 - `note_taker.py`: Compresses raw content into dense notes (single LLM call)
 - `summary_writer.py`: Structured extraction of key legislative details (schema: `WriterOutput`)
 
@@ -95,11 +94,11 @@ Each region runs as an independent **ECS Fargate task**:
 - `report/`:
   - `storage.py`: Saves pipeline output to Supabase via a two-table upsert: parent `reports` row (per region+date) and child `report_headers` rows (per legislation item with topic, header, and bullets). Returns the `report_id` on success. Single function: `save_report(region, topic_name, result) → int | None`
 - `content/`: Content processing and evaluation utilities
-  - `compressor.py`: Context compression via `compress_text(text, rate, query)`. Retains the first `rate * len(text)` characters (head truncation). The `query` parameter is reserved for future query-aware pruning. Short content (<`MIN_CHARS_TO_COMPRESS` chars) bypasses compression.
+  - `compressor.py`: Context compression via `compress_text(text, rate, query)`. Uses blended self-information token pruning with head-truncation fallback. Called by `web_search` to compress extracted page content inline. Short content (<`MIN_CHARS_TO_COMPRESS` chars) bypasses compression.
   - `source_reliability.py`: Domain-level source reliability scoring and filtering — classifies URLs into government, legislative, news, other, or blocked tiers.
 
 **Tools** (`tools/` — root level):
-- `web_search.py`: Web search tool using Tavily for legislation discovery
+- `web_search.py`: Web search + inline content extraction (Tavily Search → Tavily Extract → compression) for legislation discovery
 - `reflection.py`: Reflection tool for agent self-evaluation during ReAct loops
 - `notes.py`: `note_taker` (records notes as SystemMessage with slug ID) and `delete_note` (removes via RemoveMessage)
 - `handoff.py`: Researcher's exit tool — writes summary + sources to state and terminates the graph via `goto=END`
@@ -113,16 +112,15 @@ Each region runs as an independent **ECS Fargate task**:
 
 **Configuration** (`config/`):
 - `system_prompts/`: Prompt templates for agents and nodes
-- `constants.py`: Pipeline-wide tuneable constants: `COMPRESSION_RATE`, `MIN_CHARS_TO_COMPRESS`, `MAX_REFLECTION_ENTRIES`, `AGENT_RECURSION_LIMIT`, `MAX_RESEARCHER_INVOCATIONS`
+- `constants.py`: Pipeline-wide tuneable constants: `WEB_SEARCH_PER_URL_CHAR_CAP`, `COMPRESSION_RATE`, `MIN_CHARS_TO_COMPRESS`, `MAX_REFLECTION_ENTRIES`, `AGENT_RECURSION_LIMIT`, `MAX_RESEARCHER_INVOCATIONS`
 
 ### Data Flow Example
 
-1. **Legislation Finder**: Agent uses Tavily search with prompt-based source filtering → outputs list of URLs
-2. **Content Retrieval**: Fetches each URL's text via Tavily Extract (with `markdown.new` as fallback); each block is then compressed via `utils/content/compressor.py` → list of compressed text blocks
-3. **Note Taker**: LLM summarizes all blocks into dense notes
-4. **Summary Writer**: LLM extracts structured data (header + bullets per item) → `WriterOutput`
-5. **Report Storage** (container mode): Upserts parent `reports` row (region+date), then `report_headers` rows (one per legislation item with topic, header, bullets). Returns `report_id`.
-6. **SQS Notification** (container mode): Enqueues `{region, report_id}` to SQS so the Email Lambda can send the report. If any step failed, sends failure metadata to the Pipeline DLQ.
+1. **Agent Team**: Lead researcher dispatches researcher subagents per issue. Each researcher's `web_search` tool calls Tavily Search, then Tavily Extract + compression inline — the researcher reads actual page content and produces an informed summary. Content dicts (`{"url", "content"}`) flow through state to `run_agent_team`, which extracts `legislation_content`.
+2. **Note Taker**: LLM summarizes all content blocks into dense notes
+3. **Summary Writer**: LLM extracts structured data (header + bullets per item) → `WriterOutput`
+4. **Report Storage** (container mode): Upserts parent `reports` row (region+date), then `report_headers` rows (one per legislation item with topic, header, bullets). Returns `report_id`.
+5. **SQS Notification** (container mode): Enqueues `{region, report_id}` to SQS so the Email Lambda can send the report. If any step failed, sends failure metadata to the Pipeline DLQ.
 
 ### Key Design Decisions
 
@@ -137,15 +135,11 @@ Each region runs as an independent **ECS Fargate task**:
 **Source filtering in agent prompt**
 - Source filtering is handled by the legislation finder agent's system prompt, which includes a classification table for accepting/rejecting sources based on type (government sites, legislative databases, factual news vs. opinion, blogs, aggregators)
 
-**Content extraction via Tavily Extract (not markdown.new)**
-- `content_retrieval.py` uses the Tavily Extract SDK as its primary extraction method; `markdown.new` remains as a fallback for domains Tavily cannot reach
-- This replaced a pattern where some sites returned 403s via `markdown.new`, producing empty content and empty reports
-
-**Per-source context compression (head truncation)**
-- Each fetched page is independently compressed by `utils/content/compressor.py` before entering pipeline state. Currently uses head truncation (retains first `COMPRESSION_RATE` fraction of characters)
-- Content retrieval caps URLs at 10 (down from 20) to prevent context overflow on content-rich cities like NYC
-- At `COMPRESSION_RATE=0.4` with the 10-URL cap, even large-city payloads stay safely under the 272K-token input limit — avoiding `OpenAIContextOverflowError`
-- Compression is applied per-source (not once on the concatenated batch) to keep the logic local to where data enters the pipeline
+**Inline content extraction in web_search**
+- `web_search` calls Tavily Extract + `compress_text()` inline after each search, giving the researcher agent actual page content in its context window
+- Each URL's raw content is capped at `WEB_SEARCH_PER_URL_CHAR_CAP` (30K chars) before compression to prevent context overflow
+- At `COMPRESSION_RATE=0.4`, each URL yields ~12K chars of compressed content
+- Content dicts (`{"url", "content"}`) accumulate in state via `operator.add` and are extracted into `legislation_content` by `run_agent_team`
 - Short content (<`MIN_CHARS_TO_COMPRESS=1_000` chars) bypasses compression entirely
 
 **Direct SDK calls for external services**
@@ -240,7 +234,7 @@ docker run -e REGION=toronto -e OPENAI_API_KEY=... -e TAVILY_API_KEY=... -e SUPA
 
 ## Important Known Issues / WIP
 
-- Tavily Extract can fail on some domains (access restrictions, JS-heavy SPAs); `markdown.new` fallback handles most of these but is not 100% reliable
+- Tavily Extract can fail on some domains (access restrictions, JS-heavy SPAs); when extraction fails for a URL, `web_search` returns an empty content string and the researcher works from search snippets only
 
 ## Common Development Tasks
 

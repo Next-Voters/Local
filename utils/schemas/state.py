@@ -50,8 +50,8 @@ class LeadResearcherState(TypedDict):
     researcher_invocation_count: NotRequired[Annotated[int, operator.add]]
 
 
-# Legacy state — kept for downstream pipeline nodes (content_retrieval,
-# note_taker, summary_writer) which are not being changed in this refactor.
+# Legacy state — kept for downstream pipeline nodes (note_taker,
+# summary_writer) which are not being changed in this refactor.
 class LegislationFinderState(BaseAgentState):
     """Agent-specific state for the legislation finder agent (legacy)."""
 

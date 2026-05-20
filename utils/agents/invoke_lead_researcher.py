@@ -46,11 +46,15 @@ async def invoke_lead_researcher_agent(
         config={"recursion_limit": AGENT_RECURSION_LIMIT},
     )
 
-    # Extract validated structured output
+    # Extract validated structured output, enriching curated URLs with
+    # content dicts accumulated in state from web_search calls.
     structured: LeadResearcherOutput | None = result.get("structured_response")
     if structured:
+        accumulated = result.get("legislation_sources", [])
+        content_map = {item["url"]: item for item in accumulated if isinstance(item, dict)}
+        enriched = [content_map.get(url, url) for url in structured.legislation_sources]
         return {
-            "legislation_sources": structured.legislation_sources,
+            "legislation_sources": enriched,
             "findings": [f.model_dump() for f in structured.findings],
             "overview": structured.overview,
         }
