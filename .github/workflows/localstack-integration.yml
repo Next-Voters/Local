@@ -1,0 +1,53 @@
+name: LocalStack Integration Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "pipelines/**"
+      - "tools/**"
+      - "utils/**"
+      - "main.py"
+      - "tests/**"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: sqs,lambda,ses,iam
+          DEFAULT_REGION: us-east-1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Wait for LocalStack
+        run: |
+          pip install awscli-local
+          timeout 30 bash -c 'until awslocal sqs list-queues 2>/dev/null; do sleep 1; done'
+
+      - name: Run integration tests
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+        run: pytest tests/ -v --timeout=60
