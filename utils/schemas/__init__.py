@@ -6,6 +6,11 @@ from utils.schemas.pydantic import (
     SourceAssessment,
     WriterOutput,
 )
+from utils.schemas.research_output import (
+    LeadResearcherOutput,
+    ResearcherOutput,
+    TopicFinding,
+)
 from utils.schemas.state import (
     BaseAgentState,
     ChainData,
@@ -13,11 +18,6 @@ from utils.schemas.state import (
     LegislationFinderState,
     ResearcherState,
     TopicResult,
-)
-from utils.schemas.research_output import (
-    LeadResearcherOutput,
-    ResearcherOutput,
-    TopicFinding,
 )
 
 __all__ = [

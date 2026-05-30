@@ -97,20 +97,24 @@ def save_report(region: str, topic_name: str, result: dict[str, Any]) -> int | N
         client = get_supabase_client()
 
         # Upsert parent report row: one per region per day
-        report_response = client.table("reports").upsert(
-            {
-                "region": region,
-                "report_date": date.today().isoformat(),
-            },
-            on_conflict="region,report_date",
-        ).execute()
+        report_response = (
+            client.table("reports")
+            .upsert(
+                {
+                    "region": region,
+                    "report_date": date.today().isoformat(),
+                },
+                on_conflict="region,report_date",
+            )
+            .execute()
+        )
 
         report_id = report_response.data[0]["id"]
 
         # Delete stale headers for this (report_id, topic_id) before inserting
-        client.table("report_headers").delete().eq(
-            "report_id", report_id
-        ).eq("topic_id", topic_id).execute()
+        client.table("report_headers").delete().eq("report_id", report_id).eq(
+            "topic_id", topic_id
+        ).execute()
 
         # Insert one report_headers row per legislation item
         headers = [

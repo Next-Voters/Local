@@ -9,7 +9,7 @@ This module provides functions to query Supabase for:
 import os
 
 from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import Client, create_client
 
 from utils.logger import get_logger
 
@@ -62,12 +62,12 @@ def get_supported_regions_from_db() -> list[str]:
         client = get_supabase_client()
 
         logger.info("Querying supported regions from Supabase...")
-        response = (
-            client.table("regions").select("region").order("region").execute()
-        )
+        response = client.table("regions").select("region").order("region").execute()
 
         regions = [row["region"] for row in response.data]
-        logger.info(f"Successfully retrieved {len(regions)} supported regions: {regions}")
+        logger.info(
+            f"Successfully retrieved {len(regions)} supported regions: {regions}"
+        )
 
         return regions
 

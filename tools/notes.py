@@ -15,7 +15,7 @@ normal ToolMessage (auto-ID, stays in history) PLUS a separate SystemMessage
 from typing import Annotated
 
 from langchain_core.messages import RemoveMessage, SystemMessage, ToolMessage
-from langchain_core.tools import tool, InjectedToolCallId
+from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.types import Command
 
 
@@ -31,12 +31,16 @@ def note_taker(
         slug: Short kebab-case identifier (e.g. 'rent-control-vote', 'zoning-reform-update').
         note: The note content — what you found, from which source, and why it matters.
     """
-    return Command(update={
-        "messages": [
-            ToolMessage(content=f"Note '{slug}' recorded.", tool_call_id=tool_call_id),
-            SystemMessage(content=f"[RESEARCH_NOTE:{slug}] {note}", id=slug),
-        ],
-    })
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(
+                    content=f"Note '{slug}' recorded.", tool_call_id=tool_call_id
+                ),
+                SystemMessage(content=f"[RESEARCH_NOTE:{slug}] {note}", id=slug),
+            ],
+        }
+    )
 
 
 @tool
@@ -51,9 +55,14 @@ def delete_note(
     Args:
         slug: The slug ID of the note to delete.
     """
-    return Command(update={
-        "messages": [
-            ToolMessage(content=f"Note '{slug}' deleted from context.", tool_call_id=tool_call_id),
-            RemoveMessage(id=slug),
-        ],
-    })
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(
+                    content=f"Note '{slug}' deleted from context.",
+                    tool_call_id=tool_call_id,
+                ),
+                RemoveMessage(id=slug),
+            ],
+        }
+    )

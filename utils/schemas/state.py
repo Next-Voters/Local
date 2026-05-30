@@ -1,11 +1,11 @@
 """Typed dictionaries for LangGraph agent states."""
 
-from typing import NotRequired, Annotated, TypedDict
-
 import operator
+from typing import Annotated, NotRequired, TypedDict
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
+
 from utils.schemas.pydantic import (
     ReflectionEntry,
     SourceAssessment,

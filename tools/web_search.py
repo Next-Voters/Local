@@ -8,12 +8,12 @@ full compressed content in its context window.
 import asyncio
 from typing import Annotated, Any
 
-from langchain_core.tools import tool, InjectedToolCallId
+from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from config.constants import WEB_SEARCH_MAX_RESULTS, WEB_SEARCH_PER_URL_CHAR_CAP
-from tools._helpers import ok, err
+from tools._helpers import err, ok
 from tools.services.extract import extract_url_content
 from tools.services.tavily import search_legislation
 from utils.content.compressor import compress_text
@@ -94,7 +94,9 @@ async def web_search(
     Returns:
         A Command object that updates the state with search results and content.
     """
-    logger.info("web_search called: query=%r city=%r max_results=%d", query, city, max_results)
+    logger.info(
+        "web_search called: query=%r city=%r max_results=%d", query, city, max_results
+    )
     try:
         raw_results = await asyncio.to_thread(
             search_legislation, query=query, city=city, max_results=max_results
@@ -113,8 +115,7 @@ async def web_search(
         compressed = await asyncio.to_thread(_fetch_and_compress, urls, query)
 
         legislation_sources: list[dict[str, str]] = [
-            {"url": url, "content": compressed.get(url, "")}
-            for url in urls
+            {"url": url, "content": compressed.get(url, "")} for url in urls
         ]
 
         lines: list[str] = []
@@ -125,12 +126,13 @@ async def web_search(
             if content:
                 lines.append(f"--- [{i}] {title} ---\nURL: {url}\nContent:\n{content}")
             else:
-                lines.append(f"--- [{i}] {title} ---\nURL: {url}\n(content extraction failed)")
+                lines.append(
+                    f"--- [{i}] {title} ---\nURL: {url}\n(content extraction failed)"
+                )
 
         summary = (
             f"Web search for '{query}' (city: {city}) returned "
-            f"{len(urls)} result(s):\n\n"
-            + "\n\n".join(lines)
+            f"{len(urls)} result(s):\n\n" + "\n\n".join(lines)
         )
         logger.info("web_search returning %d URLs for city=%r", len(urls), city)
 

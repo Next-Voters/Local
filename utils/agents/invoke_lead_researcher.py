@@ -6,14 +6,15 @@ from agents.lead_researcher_agent import build_lead_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT
 from utils.schemas.research_output import LeadResearcherOutput
 
-
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
 
 async def invoke_lead_researcher_agent(
-    city: str, topic: str = "", topic_description: str = "",
+    city: str,
+    topic: str = "",
+    topic_description: str = "",
 ) -> dict:
     """Run the lead researcher for a city + topic.
 
@@ -51,7 +52,9 @@ async def invoke_lead_researcher_agent(
     structured: LeadResearcherOutput | None = result.get("structured_response")
     if structured:
         accumulated = result.get("legislation_sources", [])
-        content_map = {item["url"]: item for item in accumulated if isinstance(item, dict)}
+        content_map = {
+            item["url"]: item for item in accumulated if isinstance(item, dict)
+        }
         enriched = [content_map.get(url, url) for url in structured.legislation_sources]
         return {
             "legislation_sources": enriched,

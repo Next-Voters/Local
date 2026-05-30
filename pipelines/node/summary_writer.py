@@ -8,10 +8,10 @@ from functools import lru_cache
 
 from langchain_core.runnables import RunnableLambda
 
-from utils.schemas import ChainData, WriterOutput
+from config.system_prompts import writer_sys_prompt
 from utils.llm import get_structured_llm
 from utils.logger import get_logger
-from config.system_prompts import writer_sys_prompt
+from utils.schemas import ChainData, WriterOutput
 
 logger = get_logger(__name__)
 
@@ -44,7 +44,9 @@ def _build_user_message(
 ) -> str:
     """Assemble the SOURCES / SOURCE CONTENT / NOTES blocks the writer prompt expects."""
     if source_urls:
-        sources_block = "\n".join(f"{i}. {url}" for i, url in enumerate(source_urls, start=1))
+        sources_block = "\n".join(
+            f"{i}. {url}" for i, url in enumerate(source_urls, start=1)
+        )
     else:
         sources_block = "(no sources)"
 
@@ -56,7 +58,9 @@ def _build_user_message(
         if not text or text.startswith("[Failed to fetch:"):
             continue
         content_blocks.append(f"[Source {i}]\n{text}")
-    source_content = "\n\n".join(content_blocks) if content_blocks else "(no source content)"
+    source_content = (
+        "\n\n".join(content_blocks) if content_blocks else "(no source content)"
+    )
 
     return (
         "SOURCES:\n"
@@ -78,17 +82,20 @@ def research_summary_writer(inputs: ChainData) -> ChainData:
         legislation_content = result.get("legislation_content") or []
         topic_description = result.get("topic_description", "")
 
-        user_message = _build_user_message(source_urls, legislation_content, notes or "")
+        user_message = _build_user_message(
+            source_urls, legislation_content, notes or ""
+        )
 
-        formatted_prompt = (
-            writer_sys_prompt
-            .replace("{topic}", topic)
-            .replace("{topic_description}", topic_description)
+        formatted_prompt = writer_sys_prompt.replace("{topic}", topic).replace(
+            "{topic_description}", topic_description
         )
 
         logger.info(
             "Generating summary for topic: %s (notes=%d chars, sources=%d, content_blocks=%d)",
-            topic, len(notes or ""), len(source_urls), len(legislation_content),
+            topic,
+            len(notes or ""),
+            len(source_urls),
+            len(legislation_content),
         )
         ai_generated_summary: WriterOutput = _get_model().invoke(
             [
@@ -101,7 +108,11 @@ def research_summary_writer(inputs: ChainData) -> ChainData:
             logger.warning("Writer returned no items for topic: %s", topic)
             result["legislation_summary"] = None
         else:
-            logger.info("Writer produced %d items for topic: %s", len(ai_generated_summary.items), topic)
+            logger.info(
+                "Writer produced %d items for topic: %s",
+                len(ai_generated_summary.items),
+                topic,
+            )
             result["legislation_summary"] = ai_generated_summary
 
     return {**inputs, "topic_results": topic_results}

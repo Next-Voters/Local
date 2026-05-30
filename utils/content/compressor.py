@@ -4,8 +4,6 @@ Delegates to the CompactPrompt-based pruner for intelligent token-level
 compression.  Falls back to head truncation if the pruner fails.
 """
 
-from typing import Optional
-
 from config.constants import COMPRESSION_RATE, MIN_CHARS_TO_COMPRESS
 from utils.logger import get_logger
 
@@ -15,7 +13,7 @@ logger = get_logger(__name__)
 def compress_text(
     text: str,
     rate: float = COMPRESSION_RATE,
-    query: Optional[str] = None,
+    query: str | None = None,
 ) -> str:
     """Compress *text* by pruning low-information tokens.
 

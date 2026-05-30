@@ -1,0 +1,29 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes (dead code, undefined names)
+    "W",      # pycodestyle warnings (whitespace)
+    "I",      # isort (import ordering)
+    "UP",     # pyupgrade (modernize syntax)
+    "B",      # flake8-bugbear (common gotchas)
+    "SIM",    # flake8-simplify (unnecessary complexity)
+    "ERA",    # eradicate (commented-out code)
+    "PIE790", # unnecessary `pass` in non-empty bodies
+]
+ignore = [
+    "E501",  # line length — handled by formatter; long strings should not be broken
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # re-exports are intentional
+
+[tool.ruff.lint.isort]
+known-first-party = ["agents", "config", "pipelines", "tools", "utils"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true

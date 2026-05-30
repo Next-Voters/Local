@@ -6,7 +6,7 @@ pipeline failure metadata (dead letter queue) to Amazon SQS.
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 from dotenv import load_dotenv
@@ -88,12 +88,14 @@ def enqueue_pipeline_failure(
         sqs = get_sqs_client()
         sqs.send_message(
             QueueUrl=dlq_url,
-            MessageBody=json.dumps({
-                "region": region,
-                "failures": failures,
-                "report_id": report_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }),
+            MessageBody=json.dumps(
+                {
+                    "region": region,
+                    "failures": failures,
+                    "report_id": report_id,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ),
         )
         logger.info(f"Enqueued pipeline failure to DLQ: region={region}")
         return True

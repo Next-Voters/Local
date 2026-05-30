@@ -212,6 +212,7 @@ Use `get_llm()`, `get_mini_llm()` (same config as default), `get_structured_llm(
 - **No dedicated config file**: Configuration is inlined (e.g., `DEFAULT_LLM_CONFIG` in `utils/llm/config.py`)
 - **Minimal dependencies**: Only essential packages in `requirements.txt`
 - **Docstrings**: Required for all functions, classes, and methods
+- **Linting**: Ruff linter + formatter, configured in `pyproject.toml`. Run `ruff check --fix . && ruff format .` before committing, or rely on the pre-commit hook
 
 ## Deployment
 

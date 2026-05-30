@@ -8,7 +8,6 @@ self-information is computed as  I_dyn(t) = -log_e(P(t|ctx)) / ln(2).
 import math
 import os
 import time
-from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
@@ -73,7 +72,7 @@ def get_dynamic_scores(
         "Content-Type": "application/json",
     }
 
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
     for attempt in range(1 + TOGETHER_MAX_RETRIES):
         try:
             response = httpx.post(
@@ -121,9 +120,7 @@ def get_dynamic_scores(
     )
 
 
-def _parse_response(
-    data: dict, generated_count: int = 1
-) -> list[tuple[str, float]]:
+def _parse_response(data: dict, generated_count: int = 1) -> list[tuple[str, float]]:
     """Extract ``(token, I_dynamic)`` pairs from the API response.
 
     With ``echo=True`` the response contains echoed prompt tokens followed
@@ -134,7 +131,7 @@ def _parse_response(
         choice = data["choices"][0]
         logprobs_obj = choice["logprobs"]
         tokens: list[str] = logprobs_obj["tokens"]
-        token_logprobs: list[Optional[float]] = logprobs_obj["token_logprobs"]
+        token_logprobs: list[float | None] = logprobs_obj["token_logprobs"]
     except (KeyError, IndexError, TypeError) as exc:
         raise DynamicScoringError(f"Unexpected response shape: {exc}") from exc
 
@@ -144,7 +141,7 @@ def _parse_response(
         token_logprobs = token_logprobs[:-generated_count]
 
     results: list[tuple[str, float]] = []
-    for tok, lp in zip(tokens, token_logprobs):
+    for tok, lp in zip(tokens, token_logprobs, strict=True):
         if lp is None:
             # First token has no conditioning context — treat as high-info.
             results.append((tok, STATIC_OOV_SCORE))

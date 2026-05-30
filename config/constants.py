@@ -66,4 +66,3 @@ AGENT_RECURSION_LIMIT: int = 40
 # Maximum researcher subagent invocations per lead-researcher execution.
 # Aligns with the "2-4 specific issues" guidance in the lead researcher prompt.
 MAX_RESEARCHER_INVOCATIONS: int = 4
-
