@@ -205,14 +205,14 @@ psql -c "CREATE TABLE IF NOT EXISTS ..."
 
 CREATE TABLE IF NOT EXISTS [table_name] (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
+
     -- Core fields
     [columns...]
-    
+
     -- Temporal fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
+
     -- Constraints
     CONSTRAINT [name] CHECK (...),
     CONSTRAINT [name] UNIQUE (...),
@@ -264,7 +264,7 @@ CREATE TABLE IF NOT EXISTS cities (
     state_province TEXT NOT NULL,
     country TEXT NOT NULL DEFAULT 'US',
     government_type TEXT CHECK (government_type IN (
-        'council_manager', 'mayor_council_strong', 
+        'council_manager', 'mayor_council_strong',
         'mayor_council_weak', 'commission', 'town_meeting'
     )),
     population INTEGER,

@@ -5,7 +5,6 @@ from langchain_core.messages import HumanMessage
 from agents.researcher_agent import build_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT
 
-
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------

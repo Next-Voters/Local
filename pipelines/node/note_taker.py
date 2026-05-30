@@ -7,10 +7,10 @@ from functools import lru_cache
 
 from langchain_core.runnables import RunnableLambda
 
-from utils.schemas import ChainData
+from config.system_prompts import note_taker_sys_prompt
 from utils.llm import get_llm
 from utils.logger import get_logger
-from config.system_prompts import note_taker_sys_prompt
+from utils.schemas import ChainData
 
 logger = get_logger(__name__)
 
@@ -35,17 +35,18 @@ def research_note_taker(inputs: ChainData) -> ChainData:
         raw_content = "\n".join(raw_content_list)
         topic_description = result.get("topic_description", "")
 
-        formatted_prompt = (
-            note_taker_sys_prompt
-            .replace("{topic}", topic)
-            .replace("{topic_description}", topic_description)
+        formatted_prompt = note_taker_sys_prompt.replace("{topic}", topic).replace(
+            "{topic_description}", topic_description
         )
 
         logger.info("Generating notes for topic: %s", topic)
         ai_generated_notes = _get_model().invoke(
             [
                 {"role": "system", "content": formatted_prompt},
-                {"role": "user", "content": f"Raw page content to distill:\n\n{raw_content}"},
+                {
+                    "role": "user",
+                    "content": f"Raw page content to distill:\n\n{raw_content}",
+                },
             ],
         )
 

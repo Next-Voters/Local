@@ -8,8 +8,6 @@ regardless of their position in the document.
 Reference: *CompactPrompt* (arXiv:2510.18043)
 """
 
-from typing import Optional
-
 from config.constants import (
     BLEND_DELTA_THRESHOLD,
     COMPRESSION_RATE,
@@ -27,7 +25,7 @@ logger = get_logger(__name__)
 def prune_text(
     text: str,
     rate: float = COMPRESSION_RATE,
-    query: Optional[str] = None,
+    query: str | None = None,
 ) -> str:
     """Prune low-information tokens using blended self-information scoring.
 
@@ -49,7 +47,7 @@ def prune_text(
     # ------------------------------------------------------------------
     # 1. Dynamic scoring  →  canonical token list + I_dynamic per token
     # ------------------------------------------------------------------
-    dynamic_scores: Optional[list[tuple[str, float]]] = None
+    dynamic_scores: list[tuple[str, float]] | None = None
     try:
         dynamic_scores = get_dynamic_scores(text)
     except DynamicScoringError as exc:
@@ -139,10 +137,10 @@ def prune_text(
     # ------------------------------------------------------------------
     if i_dynamic is not None:
         # BPE tokens — concatenate directly (they encode their own spacing).
-        pruned = "".join(tok for tok, k in zip(tokens, keep) if k)
+        pruned = "".join(tok for tok, k in zip(tokens, keep, strict=True) if k)
     else:
         # Whitespace-split fallback — rejoin with spaces.
-        pruned = " ".join(tok for tok, k in zip(tokens, keep) if k)
+        pruned = " ".join(tok for tok, k in zip(tokens, keep, strict=True) if k)
 
     kept_count = sum(keep)
     logger.info(
@@ -168,7 +166,7 @@ def prune_text(
 
 def _blend_scores(
     i_static: list[float],
-    i_dynamic: Optional[list[float]],
+    i_dynamic: list[float] | None,
 ) -> list[float]:
     """Blend static and dynamic self-information per the CompactPrompt formula.
 
@@ -178,7 +176,7 @@ def _blend_scores(
         return list(i_static)
 
     blended: list[float] = []
-    for s_stat, s_dyn in zip(i_static, i_dynamic):
+    for s_stat, s_dyn in zip(i_static, i_dynamic, strict=True):
         if s_stat == 0:
             blended.append(s_dyn)
         else:

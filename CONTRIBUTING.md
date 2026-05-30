@@ -41,9 +41,45 @@ If you add tests, include how to run them in your PR description and consider up
 
 ## Linting / Formatting
 
-There is no pinned linter/formatter configuration in-repo (no `pyproject.toml`).
+This project uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting,
+enforced at two levels:
 
-Guidelines:
+- **Pre-commit hook** — lightweight slop-catcher that blocks glaring issues
+  (dead code, unused imports, commented-out code, whitespace junk, syntax errors)
+- **CI** — comprehensive lint + format check on every push and PR to `main`
+
+### One-time setup
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+After this, every `git commit` will automatically catch:
+- Unused imports and variables (dead code)
+- Undefined names
+- Commented-out code left behind
+- Trailing whitespace and missing newlines
+- Syntax errors (`compileall`)
+
+The full rule set (import ordering, code style, format) is enforced by CI.
+
+### Manual checks
+
+```bash
+# Quick lint (same rules as pre-commit)
+ruff check --select "F,W,ERA,PIE790" .
+
+# Full lint (same rules as CI)
+ruff check .
+
+# Format
+ruff format .
+```
+
+Configuration lives in `pyproject.toml` under `[tool.ruff]`.
+
+### Guidelines
 
 - Keep changes focused and consistent with nearby code.
 - Prefer explicit, typed data structures (`TypedDict` / Pydantic models) where the pipeline crosses boundaries.
@@ -57,6 +93,6 @@ Guidelines:
 ## Pull Request Checklist
 
 - [ ] The change is scoped and explained (what + why)
-- [ ] `python -m compileall -q .` succeeds
+- [ ] `pre-commit run --all-files` passes (or `ruff check . && ruff format --check .`)
 - [ ] Any new env vars are documented in `README.md` and/or `docs/OPERATIONS.md`
 - [ ] Any behavior changes to the pipeline are reflected in `docs/ARCHITECTURE.md`

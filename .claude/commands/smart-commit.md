@@ -29,4 +29,4 @@ Analyze all pending changes and use judgement to commit them as one or multiple 
    - How many commits were created and why you chose that grouping
    - The hash and message of each new commit
 
-7. Do NOT push these commits. Engineer will use bash command to manually do it when needed. 
+7. Do NOT push these commits. Engineer will use bash command to manually do it when needed.

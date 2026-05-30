@@ -5,14 +5,14 @@ All functions are synchronous (use TavilyClient).
 
 import os
 
+from dotenv import load_dotenv
+from tavily import TavilyClient
+
 from utils.logger import get_logger
 
-logger = get_logger(__name__)
-
-from dotenv import load_dotenv
-
 load_dotenv()
-from tavily import TavilyClient
+
+logger = get_logger(__name__)
 
 _MIN_SCORE = 0.15
 _MAX_RESULTS_CAP = 20
@@ -125,13 +125,18 @@ def search_legislation(
         scores = [float(r.get("score", 0)) for r in results]
         logger.info(
             "Tavily returned %d raw results for query=%r city=%r; scores=%s",
-            raw_count, query, city, scores,
+            raw_count,
+            query,
+            city,
+            scores,
         )
         results.sort(key=lambda r: float(r.get("score", 0)), reverse=True)
         results = [r for r in results if float(r.get("score", 0)) >= _MIN_SCORE]
         logger.info(
             "After score filter (>= %.2f): %d/%d results remain",
-            _MIN_SCORE, len(results), raw_count,
+            _MIN_SCORE,
+            len(results),
+            raw_count,
         )
         results = results[:max_results]
         raw["results"] = results

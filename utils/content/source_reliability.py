@@ -188,39 +188,91 @@ def score_url(url: str) -> dict:
     """
     try:
         parsed = urlparse(url)
-        domain = (parsed.hostname or "").lower().lstrip("www.")
+        domain = (parsed.hostname or "").lower().removeprefix("www.")
         full_domain = (parsed.hostname or "").lower()
         path = parsed.path or ""
     except Exception:
-        return {"url": url, "domain": "", "tier": 0, "tier_name": "blocked", "reason": "Unparseable URL"}
+        return {
+            "url": url,
+            "domain": "",
+            "tier": 0,
+            "tier_name": "blocked",
+            "reason": "Unparseable URL",
+        }
 
     # Check blocked domains first
-    if domain in _BLOCKED_DOMAINS or any(domain.endswith(f".{d}") for d in _BLOCKED_DOMAINS):
-        return {"url": url, "domain": domain, "tier": 0, "tier_name": "blocked", "reason": "Known low-quality domain"}
+    if domain in _BLOCKED_DOMAINS or any(
+        domain.endswith(f".{d}") for d in _BLOCKED_DOMAINS
+    ):
+        return {
+            "url": url,
+            "domain": domain,
+            "tier": 0,
+            "tier_name": "blocked",
+            "reason": "Known low-quality domain",
+        }
 
     # Check opinion/editorial path patterns (demote to tier 4 regardless of domain)
     if _OPINION_PATH_PATTERNS.search(path):
-        return {"url": url, "domain": domain, "tier": 4, "tier_name": "other", "reason": "Opinion/editorial URL path"}
+        return {
+            "url": url,
+            "domain": domain,
+            "tier": 4,
+            "tier_name": "other",
+            "reason": "Opinion/editorial URL path",
+        }
 
     # Tier 1: Government
     if _GOV_DOMAIN_PATTERNS.search(full_domain):
-        return {"url": url, "domain": domain, "tier": 1, "tier_name": "government", "reason": "Government domain"}
+        return {
+            "url": url,
+            "domain": domain,
+            "tier": 1,
+            "tier_name": "government",
+            "reason": "Government domain",
+        }
 
     # Also check TLD-based government detection for domains not in the pattern list
     for gov_tld in _GOV_TLDS:
         if full_domain.endswith(gov_tld):
-            return {"url": url, "domain": domain, "tier": 1, "tier_name": "government", "reason": f"Government TLD ({gov_tld})"}
+            return {
+                "url": url,
+                "domain": domain,
+                "tier": 1,
+                "tier_name": "government",
+                "reason": f"Government TLD ({gov_tld})",
+            }
 
     # Tier 2: Legislative platforms
-    if domain in _LEGISLATIVE_DOMAINS or any(domain.endswith(f".{d}") for d in _LEGISLATIVE_DOMAINS):
-        return {"url": url, "domain": domain, "tier": 2, "tier_name": "legislative", "reason": "Legislative platform"}
+    if domain in _LEGISLATIVE_DOMAINS or any(
+        domain.endswith(f".{d}") for d in _LEGISLATIVE_DOMAINS
+    ):
+        return {
+            "url": url,
+            "domain": domain,
+            "tier": 2,
+            "tier_name": "legislative",
+            "reason": "Legislative platform",
+        }
 
     # Tier 3: News outlets
     if domain in _NEWS_DOMAINS or any(domain.endswith(f".{d}") for d in _NEWS_DOMAINS):
-        return {"url": url, "domain": domain, "tier": 3, "tier_name": "news", "reason": "Established news outlet"}
+        return {
+            "url": url,
+            "domain": domain,
+            "tier": 3,
+            "tier_name": "news",
+            "reason": "Established news outlet",
+        }
 
     # Tier 4: Everything else
-    return {"url": url, "domain": domain, "tier": 4, "tier_name": "other", "reason": "Unrecognized domain"}
+    return {
+        "url": url,
+        "domain": domain,
+        "tier": 4,
+        "tier_name": "other",
+        "reason": "Unrecognized domain",
+    }
 
 
 def filter_sources(urls: list[str], min_tier: int = 4) -> list[dict]:
@@ -242,11 +294,23 @@ def filter_sources(urls: list[str], min_tier: int = 4) -> list[dict]:
     demoted = [s for s in scored if s["tier"] > min_tier]
 
     for s in accepted:
-        logger.info("  ACCEPT [tier %d/%s] %s — %s", s["tier"], s["tier_name"], s["url"], s["reason"])
+        logger.info(
+            "  ACCEPT [tier %d/%s] %s — %s",
+            s["tier"],
+            s["tier_name"],
+            s["url"],
+            s["reason"],
+        )
     for s in blocked:
         logger.info("  BLOCK  %s — %s", s["url"], s["reason"])
     for s in demoted:
-        logger.info("  DEMOTE [tier %d/%s] %s — %s", s["tier"], s["tier_name"], s["url"], s["reason"])
+        logger.info(
+            "  DEMOTE [tier %d/%s] %s — %s",
+            s["tier"],
+            s["tier_name"],
+            s["url"],
+            s["reason"],
+        )
 
     # Sort by tier (government first, then legislative, then news, then other)
     accepted.sort(key=lambda s: s["tier"])

@@ -15,12 +15,16 @@ from datetime import datetime, timedelta
 
 from langchain.agents import create_agent
 
-from config.system_prompts import legislation_finder_sys_prompt, legislation_finder_task_sys_prompt
-from tools import web_search, reflection_tool, note_taker, delete_note
-from tools.middleware import ReflectionMiddleware
+from config.system_prompts import (
+    legislation_finder_sys_prompt,
+    legislation_finder_task_sys_prompt,
+)
+from tools import delete_note, note_taker, reflection_tool, web_search
 from tools.handoff import handoff
+from tools.middleware import ReflectionMiddleware
 from utils.llm import get_llm
 from utils.schemas import ResearcherOutput, ResearcherState
+
 
 def _researcher_system_prompt(state: dict) -> str:
     """Format the researcher system prompt with runtime city/topic/issue/dates.
@@ -40,7 +44,8 @@ def _researcher_system_prompt(state: dict) -> str:
     )
     if state.get("search_guidance"):
         return legislation_finder_task_sys_prompt.format(
-            **base_kwargs, search_guidance=state["search_guidance"],
+            **base_kwargs,
+            search_guidance=state["search_guidance"],
         )
     return legislation_finder_sys_prompt.format(**base_kwargs)
 
@@ -66,5 +71,3 @@ def build_researcher_agent(state: dict):
         middleware=[ReflectionMiddleware()],
         name="researcher",
     )
-
-

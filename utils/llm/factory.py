@@ -1,17 +1,15 @@
+from typing import Any, TypeVar
+
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
-from typing import Any, Type, TypeVar
-
 from pydantic import BaseModel
 
-T = TypeVar("T", bound=BaseModel)
-
 from .config import (
-    DEFAULT_TEMPERATURE,
-    DEFAULT_MAX_TOKENS,
-    DEFAULT_TIMEOUT,
     DEFAULT_LLM_CONFIG,
+    DEFAULT_TEMPERATURE,
 )
+
+T = TypeVar("T", bound=BaseModel)
 
 
 def get_llm(
@@ -41,7 +39,7 @@ def get_mini_llm(**kwargs) -> ChatOpenAI:
 
 
 def get_structured_llm(
-    output_schema: Type[T],
+    output_schema: type[T],
     model: str = DEFAULT_LLM_CONFIG["model"],
     temperature: float = DEFAULT_TEMPERATURE,
     max_tokens: int = DEFAULT_LLM_CONFIG["max_tokens"],
@@ -58,7 +56,7 @@ def get_structured_llm(
     return base_llm.with_structured_output(output_schema, include_raw=False)
 
 
-def get_structured_mini_llm(output_schema: Type[T], **kwargs) -> Runnable[Any, T]:
+def get_structured_mini_llm(output_schema: type[T], **kwargs) -> Runnable[Any, T]:
     return get_structured_llm(
         output_schema=output_schema,
         model=DEFAULT_LLM_CONFIG["model"],

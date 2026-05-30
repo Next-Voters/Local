@@ -65,9 +65,8 @@ def run_container_mode(city: str) -> int:
             failures.append(label)
 
     # Enqueue SQS message so the Email Lambda can send the report
-    if report_id is not None:
-        if not enqueue_report(city, report_id):
-            failures.append(f"{city} (SQS enqueue)")
+    if report_id is not None and not enqueue_report(city, report_id):
+        failures.append(f"{city} (SQS enqueue)")
 
     if failures:
         logger.error(f"Pipeline failures: {failures}")

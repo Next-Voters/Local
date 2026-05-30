@@ -6,7 +6,6 @@ from splitting phrases like "Ordinance 2024-157" or "City Council".
 """
 
 from functools import lru_cache
-from typing import Optional
 
 from utils.logger import get_logger
 
@@ -16,7 +15,7 @@ logger = get_logger(__name__)
 @lru_cache(maxsize=1)
 def _load_nlp():
     """Load the SpaCy English model once (thread-safe via ``lru_cache``)."""
-    import spacy  # noqa: local import to defer the heavy load
+    import spacy  # local import to defer the heavy load
 
     nlp = spacy.load("en_core_web_sm")
     nlp.max_length = 200_000
@@ -132,7 +131,7 @@ def _merge_overlapping(groups: list[set[int]]) -> list[set[int]]:
 
     merged: list[set[int]] = [groups[0].copy()]
     for g in groups[1:]:
-        found: Optional[int] = None
+        found: int | None = None
         for i, m in enumerate(merged):
             if m & g:
                 if found is None:

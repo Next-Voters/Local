@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from langchain_core.tools import tool, InjectedToolCallId
+from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
@@ -22,5 +22,7 @@ def region_details_tool(
     """
     description = get_region_description(region)
     if not description:
-        return ok(tool_call_id, f"No detailed info for {region}. Use general knowledge.")
+        return ok(
+            tool_call_id, f"No detailed info for {region}. Use general knowledge."
+        )
     return ok(tool_call_id, description)

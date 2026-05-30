@@ -58849,7 +58849,7 @@ ${(_a2 = this.plugin.settings.authorizationHeaderName) != null ? _a2 : "Authoriz
       });
     });
     new import_obsidian2.Setting(containerEl).setName("Re-generate Certificates").setDesc(`Pressing this button will cause your certificate,
-        private key,  and public key to be re-generated, but your API key will remain unchanged. 
+        private key,  and public key to be re-generated, but your API key will remain unchanged.
         This settings panel will be closed when you press this.`).addButton((cb) => {
       cb.setWarning().setButtonText("Re-generate Certificates").onClick(() => {
         delete this.plugin.settings.crypto;
@@ -58894,7 +58894,7 @@ ${(_a2 = this.plugin.settings.authorizationHeaderName) != null ? _a2 : "Authoriz
       noWarrantee.createEl("span", {
         text: `
           Use of this software is licensed to you under the
-          MIT license, and it is important that you understand that 
+          MIT license, and it is important that you understand that
           this license provides you with no warranty.
           For the complete license text please see
         `

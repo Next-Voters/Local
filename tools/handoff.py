@@ -7,7 +7,7 @@ to write its summary and sources to state and exit the graph cleanly.
 from typing import Annotated
 
 from langchain_core.messages import ToolMessage
-from langchain_core.tools import tool, InjectedToolCallId
+from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.types import Command
 
 

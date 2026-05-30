@@ -8,15 +8,14 @@ The lead researcher:
 
 from __future__ import annotations
 
-from config.constants import MAX_RESEARCHER_INVOCATIONS
 from langchain.agents import create_agent
 
+from config.constants import MAX_RESEARCHER_INVOCATIONS
+from config.system_prompts import lead_researcher_sys_prompt
 from tools.region_details import region_details_tool
 from tools.researcher_agent_tool import researcher_agent_tool
 from utils.llm import get_llm
 from utils.schemas import LeadResearcherOutput, LeadResearcherState
-from config.system_prompts import lead_researcher_sys_prompt
-
 
 # ---------------------------------------------------------------------------
 # Dynamic system prompt
