@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage
 
 from agents.lead_researcher_agent import build_lead_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT
+from utils.agents._helpers import reconcile_sources
 from utils.schemas.research_output import LeadResearcherOutput
 
 # ---------------------------------------------------------------------------
@@ -51,11 +52,12 @@ async def invoke_lead_researcher_agent(
     # content dicts accumulated in state from web_search calls.
     structured: LeadResearcherOutput | None = result.get("structured_response")
     if structured:
+        # structured.legislation_sources is list[str] (plain URLs from the
+        # Pydantic model).  The content dicts accumulated via operator.add
+        # from researcher_agent_tool live in the state field.  Reconcile to
+        # enrich the curated URLs with their compressed content.
         accumulated = result.get("legislation_sources", [])
-        content_map = {
-            item["url"]: item for item in accumulated if isinstance(item, dict)
-        }
-        enriched = [content_map.get(url, url) for url in structured.legislation_sources]
+        enriched = reconcile_sources(accumulated, structured.legislation_sources)
         return {
             "legislation_sources": enriched,
             "findings": [f.model_dump() for f in structured.findings],

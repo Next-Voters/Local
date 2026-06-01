@@ -4,6 +4,8 @@ from langchain_core.messages import HumanMessage
 
 from agents.researcher_agent import build_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT
+from utils.agents._helpers import reconcile_sources
+
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -50,7 +52,13 @@ async def invoke_researcher_agent(
 
     # Extract from state written by handoff tool
     summary = result.get("research_summary")
-    sources = result.get("legislation_sources", [])
+    raw_sources = result.get("legislation_sources", [])
+
+    # Reconcile: handoff pushed plain URL strings (curated selection),
+    # web_search pushed {"url", "content"} dicts (all results).
+    # Keep only the curated URLs, enriched with content.
+    curated_urls = [s for s in raw_sources if isinstance(s, str) and s.strip()]
+    sources = reconcile_sources(raw_sources, curated_urls)
 
     if not summary:
         summary = "Researcher returned no summary for this issue."

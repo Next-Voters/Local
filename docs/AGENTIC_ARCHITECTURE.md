@@ -25,12 +25,12 @@ Code layout (high level):
 - Agent is compiled with `recursion_limit=25` to prevent unbounded tool-call loops (added after 429 rate-limit errors in multi-city runs)
 - Output: `legislation_sources` (a list of URLs)
 
-2) `pipelines/node/content_retrieval.py`
+2) Content retrieval (inline in `tools/web_search.py`)
 
-- Fetches each URL via Tavily Extract SDK (primary); falls back to `https://markdown.new/<url>` for domains Tavily cannot reach
-- Each page's text is compressed by `utils/content/compressor.py` (head truncation at `COMPRESSION_RATE=0.4`) before being appended to the list — this prevents `OpenAIContextOverflowError` on large cities
-- Tavily Extract is capped at 20 URLs per request (API hard limit); the pipeline respects this at both the client and node layers
-- Output: `legislation_content` (list of compressed text blocks)
+- The `web_search` tool fetches full page content via Tavily Extract after each search, then compresses it via dynamic self-information scoring (`utils/content/compressor.py`)
+- Compressed content is returned in the tool message (so the researcher can read it) and pushed to state as `{"url", "content"}` dicts
+- `run_agent_team.py` extracts `legislation_content` from the content dicts after source reliability filtering
+- Output: `legislation_content` (list of compressed text blocks, populated in `run_agent_team.py`)
 
 3) `pipelines/node/note_taker.py`
 

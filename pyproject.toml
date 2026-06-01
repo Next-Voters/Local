@@ -20,6 +20,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # re-exports are intentional
+"tests/**" = ["S101"]  # asserts are expected in tests
 
 [tool.ruff.lint.isort]
 known-first-party = ["agents", "config", "pipelines", "tools", "utils"]
@@ -27,3 +28,7 @@ known-first-party = ["agents", "config", "pipelines", "tools", "utils"]
 [tool.ruff.format]
 quote-style = "double"
 docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

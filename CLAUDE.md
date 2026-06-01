@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Next Voters Local** is a multi-agent AI research pipeline that discovers, researches, and summarizes municipal legislation across cities. It makes government information accessible to communities that lack time or resources to track local officials.
+**Next Voters Agent** is a multi-agent AI research pipeline that discovers, researches, and summarizes municipal legislation across cities. It makes government information accessible to communities that lack time or resources to track local officials.
 
 The system runs as a standalone CLI tool or Docker container, orchestrated by LangGraph-based agents. Each execution researches legislation for a given region and stores structured results (headers + bullets) in Supabase.
 
@@ -60,6 +60,7 @@ The pipeline is a **fixed, deterministic sequence** of nodes composed via LangGr
 
 ```
 run_agent_team → note_taker → summary_writer
+run_agent_team → note_taker → summary_writer
 ```
 
 **Key design**: Each node is a thin `RunnableSequence` that transforms pipeline state (`ChainData` TypedDict).
@@ -82,7 +83,7 @@ Each region runs as an independent **ECS Fargate task**:
 - `lead_researcher_agent.py`: Supervisor agent that dispatches researchers per issue, validates sources, and synthesizes findings
 
 **Pipeline Nodes** (`pipelines/node/`):
-- `run_agent_team.py`: Runs a lead researcher agent per topic, filters sources, extracts `legislation_content` from content dicts
+- `run_agent_team.py`: Orchestrates lead researcher agents per topic, collects sources with compressed content, populates `legislation_content`
 - `note_taker.py`: Compresses raw content into dense notes (single LLM call)
 - `summary_writer.py`: Structured extraction of key legislative details (schema: `WriterOutput`)
 
@@ -98,7 +99,7 @@ Each region runs as an independent **ECS Fargate task**:
   - `source_reliability.py`: Domain-level source reliability scoring and filtering — classifies URLs into government, legislative, news, other, or blocked tiers.
 
 **Tools** (`tools/` — root level):
-- `web_search.py`: Web search + inline content extraction (Tavily Search → Tavily Extract → compression) for legislation discovery
+- `web_search.py`: Web search + content retrieval tool — searches via Tavily, fetches full page content via Tavily Extract, compresses via dynamic self-information scoring, returns compressed content to the researcher agent
 - `reflection.py`: Reflection tool for agent self-evaluation during ReAct loops
 - `notes.py`: `note_taker` (records notes as SystemMessage with slug ID) and `delete_note` (removes via RemoveMessage)
 - `handoff.py`: Researcher's exit tool — writes summary + sources to state and terminates the graph via `goto=END`
@@ -116,8 +117,8 @@ Each region runs as an independent **ECS Fargate task**:
 
 ### Data Flow Example
 
-1. **Agent Team**: Lead researcher dispatches researcher subagents per issue. Each researcher's `web_search` tool calls Tavily Search, then Tavily Extract + compression inline — the researcher reads actual page content and produces an informed summary. Content dicts (`{"url", "content"}`) flow through state to `run_agent_team`, which extracts `legislation_content`.
-2. **Note Taker**: LLM summarizes all content blocks into dense notes
+1. **Agent Team**: Lead researcher dispatches researcher subagents per issue. Each researcher uses `web_search` which searches via Tavily, fetches full page content via Tavily Extract, and compresses it via dynamic self-information scoring. The researcher reads compressed content in-context, evaluates quality, and hands off an informed summary with curated URL strings. The `web_search` tool separately pushes `{"url", "content"}` dicts to state via `operator.add`. `invoke_researcher` reconciles the curated URLs with their content dicts. `run_agent_team` collects sources, filters by reliability, and populates `legislation_content` from the content dicts.
+2. **Note Taker**: LLM summarizes all compressed content blocks into dense notes
 3. **Summary Writer**: LLM extracts structured data (header + bullets per item) → `WriterOutput`
 4. **Report Storage** (container mode): Upserts parent `reports` row (region+date), then `report_headers` rows (one per legislation item with topic, header, bullets). Returns `report_id`.
 5. **SQS Notification** (container mode): Enqueues `{region, report_id}` to SQS so the Email Lambda can send the report. If any step failed, sends failure metadata to the Pipeline DLQ.
@@ -135,11 +136,16 @@ Each region runs as an independent **ECS Fargate task**:
 **Source filtering in agent prompt**
 - Source filtering is handled by the legislation finder agent's system prompt, which includes a classification table for accepting/rejecting sources based on type (government sites, legislative databases, factual news vs. opinion, blogs, aggregators)
 
-**Inline content extraction in web_search**
-- `web_search` calls Tavily Extract + `compress_text()` inline after each search, giving the researcher agent actual page content in its context window
-- Each URL's raw content is capped at `WEB_SEARCH_PER_URL_CHAR_CAP` (30K chars) before compression to prevent context overflow
-- At `COMPRESSION_RATE=0.4`, each URL yields ~12K chars of compressed content
-- Content dicts (`{"url", "content"}`) accumulate in state via `operator.add` and are extracted into `legislation_content` by `run_agent_team`
+**Content extraction inline in web_search (not a separate pipeline node)**
+- The `web_search` tool fetches full page content via Tavily Extract and compresses it via dynamic self-information scoring, returning compressed content directly to the researcher agent
+- This gives the researcher actual content to evaluate source quality and relevance, producing content-informed summaries instead of guessing from search snippets
+- Compressed content flows through state as `{"url", "content"}` dicts, populating `legislation_content` in `run_agent_team.py` without a separate content retrieval step
+
+**Per-source context compression (blended self-information pruning)**
+- Each fetched page is independently compressed by `utils/content/compressor.py` inside the `web_search` tool, before entering the researcher agent's context window
+- Raw content is capped at `WEB_SEARCH_PER_URL_CHAR_CAP=30_000` chars per URL before compression
+- At `COMPRESSION_RATE=0.4`, each URL yields ~12K chars of compressed content; with `WEB_SEARCH_MAX_RESULTS=3` and up to 4 searches per researcher, the context budget stays manageable
+- Compression is applied per-source to keep the logic local to where data enters the pipeline
 - Short content (<`MIN_CHARS_TO_COMPRESS=1_000` chars) bypasses compression entirely
 
 **Direct SDK calls for external services**

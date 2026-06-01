@@ -25,6 +25,10 @@ from tools.middleware import ReflectionMiddleware
 from utils.llm import get_llm
 from utils.schemas import ResearcherOutput, ResearcherState
 
+# ---------------------------------------------------------------------------
+# Dynamic system prompt
+# ---------------------------------------------------------------------------
+
 
 def _researcher_system_prompt(state: dict) -> str:
     """Format the researcher system prompt with runtime city/topic/issue/dates.

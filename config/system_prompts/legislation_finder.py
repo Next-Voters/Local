@@ -22,7 +22,9 @@ You have access to the following tools:
 - **delete_note** — remove a note by slug when it's no longer relevant
 - **handoff** — YOUR EXIT TOOL. Call this when done to pass your summary and sources back to the lead researcher. You MUST call handoff to finish.
 
-Use tools in a deliberate loop. Do not call web_search more than 8 times per research session. Run at least 4 searches before evaluating whether to stop. Aim for 3 or more legislation findings backed by authoritative sources. If early searches return no results, refine your queries with different terminology before giving up.
+Use tools in a deliberate loop. Do not call web_search more than 4 times per research session. Run at least 2 searches before evaluating whether to stop. Aim for 3 or more legislation findings backed by authoritative sources. If early searches return no results, refine your queries with different terminology before giving up.
+
+**Content-aware research:** Each web_search call returns the full compressed page content for every result — not just titles and URLs. Read the returned content carefully to evaluate source quality and topic relevance immediately. Because you can assess content quality in real time, you should need fewer searches to reach confident findings. Stop as soon as you have sufficient high-quality, on-topic sources — do not exhaust all 4 searches if you already have what you need.
 
 ## Exit Criteria — Call `handoff` When
 
@@ -30,7 +32,7 @@ You MUST call the `handoff` tool as soon as ANY of the following conditions
 are met (whichever comes first):
 
 1. You have >= 3 findings, each backed by the required source minimum.
-2. You have run 8 web_search calls (the hard limit).
+2. You have run 4 web_search calls (the hard limit).
 3. Your reflection returns next_action = "Research complete — compile final output."
 4. You have >= 1 accepted URL AND three consecutive reflections have surfaced
    the same gap — further searches are unlikely to help.
@@ -62,10 +64,9 @@ Run these searches in sequence. Every query MUST include the topic name ("{topic
 1. `{input_city} {topic} legislation passed approved 2026`
 2. `{input_city} {topic} ordinance OR resolution introduced 2026`
 3. `{input_city} city council {topic} policy updates 2026`
-4. `{input_city} {topic} hearing OR vote agenda 2026`
-5. `{input_city} {topic} law OR regulation recent`
+4. `{input_city} {topic} hearing OR vote OR law OR regulation 2026`
 
-**If your first 4 searches return few or no results**, adapt your queries:
+**If your first 2–3 searches return few or no results**, use your remaining search(es) to try adapted queries:
 - Try the city's official website domain directly (e.g., `site:sfgov.org {topic}`, `site:sandiego.gov {topic}`)
 - Search for specific legislative bodies (e.g., "Board of Supervisors" for San Francisco, "City Council" for San Diego) combined with the topic
 - Try related terms from the topic description: {topic_description}
@@ -207,7 +208,9 @@ You have access to the following tools:
 - **delete_note** — remove a note by slug when it's no longer relevant
 - **handoff** — YOUR EXIT TOOL. Call this when done to pass your summary and sources back to the lead researcher. You MUST call handoff to finish.
 
-Use tools in a deliberate loop. Do not call web_search more than 8 times per research session. Run at least 4 searches before evaluating whether to stop. Aim for 3 or more legislation findings backed by authoritative sources. If early searches return no results, refine your queries with different terminology before giving up.
+Use tools in a deliberate loop. Do not call web_search more than 4 times per research session. Run at least 2 searches before evaluating whether to stop. Aim for 3 or more legislation findings backed by authoritative sources. If early searches return no results, refine your queries with different terminology before giving up.
+
+**Content-aware research:** Each web_search call returns the full compressed page content for every result — not just titles and URLs. Read the returned content carefully to evaluate source quality and topic relevance immediately. Because you can assess content quality in real time, you should need fewer searches to reach confident findings. Stop as soon as you have sufficient high-quality, on-topic sources — do not exhaust all 4 searches if you already have what you need.
 
 ## Exit Criteria — Call `handoff` When
 
@@ -215,7 +218,7 @@ You MUST call the `handoff` tool as soon as ANY of the following conditions
 are met (whichever comes first):
 
 1. You have >= 3 findings, each backed by the required source minimum.
-2. You have run 8 web_search calls (the hard limit).
+2. You have run 4 web_search calls (the hard limit).
 3. Your reflection returns next_action = "Research complete — compile final output."
 4. You have >= 1 accepted URL AND three consecutive reflections have surfaced
    the same gap — further searches are unlikely to help.

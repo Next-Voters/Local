@@ -1,0 +1,746 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Next Voters Agent infrastructure — shared template for staging and production.",
+
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": ["staging", "production"],
+      "Description": "Deployment environment."
+    },
+    "VpcCidr": {
+      "Type": "String",
+      "Default": "10.0.0.0/16"
+    },
+    "PublicSubnetACidr": {
+      "Type": "String",
+      "Default": "10.0.1.0/24"
+    },
+    "PublicSubnetBCidr": {
+      "Type": "String",
+      "Default": "10.0.2.0/24"
+    },
+    "SubnetAAvailabilityZone": {
+      "Type": "AWS::EC2::AvailabilityZone::Name",
+      "Default": "us-east-1a"
+    },
+    "SubnetBAvailabilityZone": {
+      "Type": "AWS::EC2::AvailabilityZone::Name",
+      "Default": "us-east-1b"
+    },
+    "EcsTaskCpu": {
+      "Type": "String",
+      "Default": "1024"
+    },
+    "EcsTaskMemory": {
+      "Type": "String",
+      "Default": "2048"
+    },
+    "PipelineImageTag": {
+      "Type": "String",
+      "Default": "latest"
+    },
+    "DispatcherImageTag": {
+      "Type": "String",
+      "Default": "latest"
+    },
+    "EmailImageTag": {
+      "Type": "String",
+      "Default": "latest"
+    },
+    "ScheduleExpression": {
+      "Type": "String",
+      "Default": "cron(0 9 ? * MON *)",
+      "Description": "Weekly cron for EventBridge Scheduler (prod only)."
+    },
+    "SesDomain": {
+      "Type": "String",
+      "Description": "Domain for SES email sending."
+    },
+    "SesSenderEmail": {
+      "Type": "String",
+      "Description": "Sender email address."
+    },
+    "LogRetentionDays": {
+      "Type": "Number",
+      "Default": 30
+    },
+    "DlqMessageRetentionSeconds": {
+      "Type": "Number",
+      "Default": 1209600,
+      "Description": "14 days."
+    },
+    "ReportQueueVisibilityTimeout": {
+      "Type": "Number",
+      "Default": 300,
+      "Description": "Aligned with Email Lambda timeout."
+    },
+    "EmailDlqMaxReceiveCount": {
+      "Type": "Number",
+      "Default": 3
+    },
+    "GitHubOrg": {
+      "Type": "String",
+      "Default": "Next-Voters"
+    },
+    "GitHubRepo": {
+      "Type": "String",
+      "Default": "Agent"
+    }
+  },
+
+  "Conditions": {
+    "IsProd": { "Fn::Equals": [{ "Ref": "Environment" }, "production"] }
+  },
+
+  "Resources": {
+
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": { "Ref": "VpcCidr" },
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          { "Key": "Name", "Value": { "Fn::Sub": "next-voters-${Environment}-vpc" } }
+        ]
+      }
+    },
+
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          { "Key": "Name", "Value": { "Fn::Sub": "next-voters-${Environment}-igw" } }
+        ]
+      }
+    },
+
+    "IGWAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "InternetGatewayId": { "Ref": "InternetGateway" }
+      }
+    },
+
+    "PublicSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": { "Ref": "PublicSubnetACidr" },
+        "AvailabilityZone": { "Ref": "SubnetAAvailabilityZone" },
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          { "Key": "Name", "Value": { "Fn::Sub": "next-voters-${Environment}-public-a" } }
+        ]
+      }
+    },
+
+    "PublicSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": { "Ref": "PublicSubnetBCidr" },
+        "AvailabilityZone": { "Ref": "SubnetBAvailabilityZone" },
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          { "Key": "Name", "Value": { "Fn::Sub": "next-voters-${Environment}-public-b" } }
+        ]
+      }
+    },
+
+    "PublicRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "Tags": [
+          { "Key": "Name", "Value": { "Fn::Sub": "next-voters-${Environment}-public-rt" } }
+        ]
+      }
+    },
+
+    "PublicRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": "IGWAttachment",
+      "Properties": {
+        "RouteTableId": { "Ref": "PublicRouteTable" },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": { "Ref": "InternetGateway" }
+      }
+    },
+
+    "SubnetARouteTableAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": { "Ref": "PublicSubnetA" },
+        "RouteTableId": { "Ref": "PublicRouteTable" }
+      }
+    },
+
+    "SubnetBRouteTableAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": { "Ref": "PublicSubnetB" },
+        "RouteTableId": { "Ref": "PublicRouteTable" }
+      }
+    },
+
+    "EcsSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "ECS Fargate tasks — egress only, no inbound.",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow all outbound (external API calls)."
+          }
+        ],
+        "Tags": [
+          { "Key": "Name", "Value": { "Fn::Sub": "next-voters-${Environment}-ecs-sg" } }
+        ]
+      }
+    },
+
+    "PipelineEcrRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": { "Fn::Sub": "next-voters-${Environment}-agent" },
+        "LifecyclePolicy": {
+          "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"selection\":{\"tagStatus\":\"untagged\",\"countType\":\"sinceImagePushed\",\"countNumber\":7,\"countUnit\":\"days\"},\"action\":{\"type\":\"expire\"}},{\"rulePriority\":2,\"selection\":{\"tagStatus\":\"tagged\",\"tagPrefixList\":[\"v\"],\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
+        }
+      }
+    },
+
+    "DispatcherEcrRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": { "Fn::Sub": "next-voters-${Environment}-dispatcher" },
+        "LifecyclePolicy": {
+          "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"selection\":{\"tagStatus\":\"untagged\",\"countType\":\"sinceImagePushed\",\"countNumber\":7,\"countUnit\":\"days\"},\"action\":{\"type\":\"expire\"}},{\"rulePriority\":2,\"selection\":{\"tagStatus\":\"tagged\",\"tagPrefixList\":[\"v\"],\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
+        }
+      }
+    },
+
+    "EmailEcrRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": { "Fn::Sub": "next-voters-${Environment}-email" },
+        "LifecyclePolicy": {
+          "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"selection\":{\"tagStatus\":\"untagged\",\"countType\":\"sinceImagePushed\",\"countNumber\":7,\"countUnit\":\"days\"},\"action\":{\"type\":\"expire\"}},{\"rulePriority\":2,\"selection\":{\"tagStatus\":\"tagged\",\"tagPrefixList\":[\"v\"],\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
+        }
+      }
+    },
+
+    "EcsLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/ecs/next-voters-${Environment}-pipeline" },
+        "RetentionInDays": { "Ref": "LogRetentionDays" }
+      }
+    },
+
+    "DispatcherLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/aws/lambda/next-voters-${Environment}-dispatcher" },
+        "RetentionInDays": { "Ref": "LogRetentionDays" }
+      }
+    },
+
+    "EmailLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/aws/lambda/next-voters-${Environment}-email" },
+        "RetentionInDays": { "Ref": "LogRetentionDays" }
+      }
+    },
+
+    "ReportQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": { "Fn::Sub": "next-voters-${Environment}-report-ready" },
+        "VisibilityTimeout": { "Ref": "ReportQueueVisibilityTimeout" },
+        "RedrivePolicy": {
+          "deadLetterTargetArn": { "Fn::GetAtt": ["EmailDlq", "Arn"] },
+          "maxReceiveCount": { "Ref": "EmailDlqMaxReceiveCount" }
+        }
+      }
+    },
+
+    "PipelineDlq": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": { "Fn::Sub": "next-voters-${Environment}-pipeline-dlq" },
+        "MessageRetentionPeriod": { "Ref": "DlqMessageRetentionSeconds" }
+      }
+    },
+
+    "EmailDlq": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": { "Fn::Sub": "next-voters-${Environment}-email-dlq" },
+        "MessageRetentionPeriod": { "Ref": "DlqMessageRetentionSeconds" }
+      }
+    },
+
+    "SesDomainIdentity": {
+      "Type": "AWS::SES::EmailIdentity",
+      "Properties": {
+        "EmailIdentity": { "Ref": "SesDomain" }
+      }
+    },
+
+    "EcsTaskExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": { "Fn::Sub": "next-voters-${Environment}-ecs-task-execution" },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "LogsAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": { "Fn::GetAtt": ["EcsLogGroup", "Arn"] }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "EcsTaskRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": { "Fn::Sub": "next-voters-${Environment}-ecs-task" },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "SqsAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:SendMessage",
+                    "sqs:GetQueueUrl"
+                  ],
+                  "Resource": [
+                    { "Fn::GetAtt": ["ReportQueue", "Arn"] },
+                    { "Fn::GetAtt": ["PipelineDlq", "Arn"] }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "DispatcherLambdaRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": { "Fn::Sub": "next-voters-${Environment}-dispatcher-lambda" },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "lambda.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "DispatcherAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:RunTask",
+                    "ecs:DescribeTaskDefinition"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "iam:PassRole",
+                  "Resource": [
+                    { "Fn::GetAtt": ["EcsTaskExecutionRole", "Arn"] },
+                    { "Fn::GetAtt": ["EcsTaskRole", "Arn"] }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": { "Fn::GetAtt": ["DispatcherLogGroup", "Arn"] }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "EmailLambdaRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": { "Fn::Sub": "next-voters-${Environment}-email-lambda" },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "lambda.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "EmailAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:GetQueueAttributes"
+                  ],
+                  "Resource": { "Fn::GetAtt": ["ReportQueue", "Arn"] }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ses:SendEmail",
+                    "ses:SendRawEmail"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": { "Fn::GetAtt": ["EmailLogGroup", "Arn"] }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "GitHubActionsOidcProvider": {
+      "Type": "AWS::IAM::OIDCProvider",
+      "Properties": {
+        "Url": "https://token.actions.githubusercontent.com",
+        "ClientIdList": ["sts.amazonaws.com"],
+        "ThumbprintList": ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+      }
+    },
+
+    "GitHubActionsRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": { "Fn::Sub": "next-voters-${Environment}-github-actions" },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": { "Fn::GetAtt": ["GitHubActionsOidcProvider", "Arn"] }
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                },
+                "StringLike": {
+                  "token.actions.githubusercontent.com:sub": { "Fn::Sub": "repo:${GitHubOrg}/${GitHubRepo}:*" }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CiCdAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken",
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:PutImage",
+                    "ecr:UploadLayerPart"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:RegisterTaskDefinition"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "iam:PassRole",
+                  "Resource": [
+                    { "Fn::GetAtt": ["EcsTaskExecutionRole", "Arn"] },
+                    { "Fn::GetAtt": ["EcsTaskRole", "Arn"] }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:CreateStack",
+                    "cloudformation:UpdateStack",
+                    "cloudformation:CreateChangeSet",
+                    "cloudformation:DescribeChangeSet",
+                    "cloudformation:ExecuteChangeSet",
+                    "cloudformation:DeleteChangeSet"
+                  ],
+                  "Resource": { "Fn::Sub": "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/next-voters-${Environment}/*" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "EcsCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": { "Fn::Sub": "next-voters-${Environment}" },
+        "CapacityProviders": ["FARGATE"],
+        "DefaultCapacityProviderStrategy": [
+          { "CapacityProvider": "FARGATE", "Weight": 1 }
+        ]
+      }
+    },
+
+    "EcsTaskDefinition": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": { "Fn::Sub": "next-voters-${Environment}-pipeline" },
+        "RequiresCompatibilities": ["FARGATE"],
+        "NetworkMode": "awsvpc",
+        "Cpu": { "Ref": "EcsTaskCpu" },
+        "Memory": { "Ref": "EcsTaskMemory" },
+        "ExecutionRoleArn": { "Fn::GetAtt": ["EcsTaskExecutionRole", "Arn"] },
+        "TaskRoleArn": { "Fn::GetAtt": ["EcsTaskRole", "Arn"] },
+        "ContainerDefinitions": [
+          {
+            "Name": { "Fn::Sub": "next-voters-${Environment}-pipeline" },
+            "Image": {
+              "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/next-voters-${Environment}-agent:${PipelineImageTag}"
+            },
+            "Essential": true,
+            "Environment": [
+              { "Name": "SQS_QUEUE_URL", "Value": { "Ref": "ReportQueue" } },
+              { "Name": "SQS_PIPELINE_DLQ_URL", "Value": { "Ref": "PipelineDlq" } }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": { "Ref": "EcsLogGroup" },
+                "awslogs-region": { "Ref": "AWS::Region" },
+                "awslogs-stream-prefix": "pipeline"
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    "DispatcherLambda": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "next-voters-${Environment}-dispatcher" },
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": {
+            "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/next-voters-${Environment}-dispatcher:${DispatcherImageTag}"
+          }
+        },
+        "Role": { "Fn::GetAtt": ["DispatcherLambdaRole", "Arn"] },
+        "MemorySize": 256,
+        "Timeout": 300,
+        "Environment": {
+          "Variables": {
+            "ECS_CLUSTER": { "Ref": "EcsCluster" },
+            "ECS_TASK_DEFINITION": { "Ref": "EcsTaskDefinition" },
+            "ECS_CONTAINER_NAME": { "Fn::Sub": "next-voters-${Environment}-pipeline" },
+            "ECS_SUBNETS": { "Fn::Join": [",", [{ "Ref": "PublicSubnetA" }, { "Ref": "PublicSubnetB" }]] },
+            "ECS_SECURITY_GROUP": { "Ref": "EcsSecurityGroup" }
+          }
+        }
+      }
+    },
+
+    "EmailLambda": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "next-voters-${Environment}-email" },
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": {
+            "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/next-voters-${Environment}-email:${EmailImageTag}"
+          }
+        },
+        "Role": { "Fn::GetAtt": ["EmailLambdaRole", "Arn"] },
+        "MemorySize": 256,
+        "Timeout": 60,
+        "ReservedConcurrentExecutions": 5
+      }
+    },
+
+    "EmailLambdaSqsTrigger": {
+      "Type": "AWS::Lambda::EventSourceMapping",
+      "Properties": {
+        "EventSourceArn": { "Fn::GetAtt": ["ReportQueue", "Arn"] },
+        "FunctionName": { "Ref": "EmailLambda" },
+        "BatchSize": 1,
+        "Enabled": true
+      }
+    },
+
+    "WeeklyScheduler": {
+      "Type": "AWS::Scheduler::Schedule",
+      "Condition": "IsProd",
+      "Properties": {
+        "Name": { "Fn::Sub": "next-voters-${Environment}-weekly" },
+        "ScheduleExpression": { "Ref": "ScheduleExpression" },
+        "FlexibleTimeWindow": { "Mode": "OFF" },
+        "Target": {
+          "Arn": { "Fn::GetAtt": ["DispatcherLambda", "Arn"] },
+          "RoleArn": { "Fn::GetAtt": ["EventBridgeSchedulerRole", "Arn"] }
+        }
+      }
+    },
+
+    "EventBridgeSchedulerRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "IsProd",
+      "Properties": {
+        "RoleName": { "Fn::Sub": "next-voters-${Environment}-eventbridge-scheduler" },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "scheduler.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "InvokeDispatcher",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "lambda:InvokeFunction",
+                  "Resource": { "Fn::GetAtt": ["DispatcherLambda", "Arn"] }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "VpcId": {
+      "Value": { "Ref": "VPC" }
+    },
+    "EcsClusterArn": {
+      "Value": { "Fn::GetAtt": ["EcsCluster", "Arn"] }
+    },
+    "EcsTaskDefinitionArn": {
+      "Value": { "Ref": "EcsTaskDefinition" }
+    },
+    "PipelineEcrRepoUri": {
+      "Value": { "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/next-voters-${Environment}-agent" }
+    },
+    "DispatcherEcrRepoUri": {
+      "Value": { "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/next-voters-${Environment}-dispatcher" }
+    },
+    "EmailEcrRepoUri": {
+      "Value": { "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/next-voters-${Environment}-email" }
+    },
+    "ReportQueueUrl": {
+      "Value": { "Ref": "ReportQueue" }
+    },
+    "PipelineDlqUrl": {
+      "Value": { "Ref": "PipelineDlq" }
+    },
+    "DispatcherLambdaArn": {
+      "Value": { "Fn::GetAtt": ["DispatcherLambda", "Arn"] }
+    },
+    "EmailLambdaArn": {
+      "Value": { "Fn::GetAtt": ["EmailLambda", "Arn"] }
+    },
+    "GitHubActionsRoleArn": {
+      "Value": { "Fn::GetAtt": ["GitHubActionsRole", "Arn"] }
+    }
+  }
+}

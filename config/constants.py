@@ -8,8 +8,15 @@
 # At COMPRESSION_RATE=0.4, yields ~12K chars of compressed content per URL.
 WEB_SEARCH_PER_URL_CHAR_CAP: int = 30_000
 
-# Default Tavily Search results per query.
-WEB_SEARCH_MAX_RESULTS: int = 5
+# Default Tavily Search results per query.  Kept low because each search
+# now triggers a Tavily Extract call (content fetched inline).
+WEB_SEARCH_MAX_RESULTS: int = 3
+
+# Raw character cap applied to each URL's content *before* compression
+# inside ``web_search``.  Prevents a single large page from dominating the
+# researcher agent's context window.  At COMPRESSION_RATE=0.4 this yields
+# ~12 K chars of compressed content per URL.
+WEB_SEARCH_PER_URL_CHAR_CAP: int = 30_000
 
 
 # ---------------------------------------------------------------------------

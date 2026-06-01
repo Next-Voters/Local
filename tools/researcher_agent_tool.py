@@ -11,12 +11,13 @@ from __future__ import annotations
 from typing import Annotated
 
 from langchain_core.messages import ToolMessage
-from langchain_core.tools import InjectedToolCallId, tool
+from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from config.constants import MAX_RESEARCHER_INVOCATIONS
 from utils.agents import invoke_researcher_agent
+
 
 # ---------------------------------------------------------------------------
 # Tool
@@ -76,7 +77,16 @@ async def researcher_agent_tool(
         search_guidance=search_guidance,
         topic_description=topic_description,
     )
+    result = await invoke_researcher_agent(
+        city=city,
+        topic=topic,
+        issue=issue,
+        search_guidance=search_guidance,
+        topic_description=topic_description,
+    )
 
+    summary = result["research_summary"]
+    sources = result["legislation_sources"]
     summary = result["research_summary"]
     sources = result["legislation_sources"]
 

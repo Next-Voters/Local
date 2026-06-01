@@ -56,9 +56,7 @@ def run_agent_team(inputs: ChainData) -> ChainData:
         topic_description = topic_info.get("description", "")
         logger.info("Running lead researcher for %s / %s", city, topic)
 
-        lead_researcher_states = dict(
-            city=city, topic=topic, topic_description=topic_description
-        )
+        lead_researcher_states = dict(city=city, topic=topic, topic_description=topic_description)
         agent_result = asyncio.run(
             invoke_lead_researcher_agent(**lead_researcher_states)
         )
@@ -89,8 +87,12 @@ def run_agent_team(inputs: ChainData) -> ChainData:
             len(pruned_findings),
         )
 
+        # Extract compressed content from source dicts — replaces the
+        # former content_retrieval pipeline node.
         legislation_content = [
-            s["content"] if isinstance(s, dict) and s.get("content") else ""
+            s["content"]
+            if isinstance(s, dict) and s.get("content")
+            else f"[Failed to fetch: {s['url'] if isinstance(s, dict) else s}]"
             for s in legislation_sources
         ]
 
