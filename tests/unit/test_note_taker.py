@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 
-
 def _make_llm_response(text: str):
     """Build a mock LLM response with the given content string."""
     response = MagicMock()

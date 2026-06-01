@@ -10,10 +10,8 @@ never exists in main's module-level namespace.
 
 from unittest.mock import patch
 
-
 from main import run_container_mode
 from utils.schemas.pydantic import LegislationItem, WriterOutput
-
 
 # ---------------------------------------------------------------------------
 # Patch target constants — keeps the test bodies readable

@@ -2,14 +2,12 @@
 
 from unittest.mock import MagicMock, patch
 
-
 from utils.report.storage import (
     _normalize_source_urls,
     _resolve_source_urls,
     save_report,
 )
 from utils.schemas.pydantic import LegislationItem, WriterOutput
-
 
 # ---------------------------------------------------------------------------
 # _normalize_source_urls

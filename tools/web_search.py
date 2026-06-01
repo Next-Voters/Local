@@ -15,7 +15,7 @@ from langgraph.prebuilt.tool_node import InjectedState
 from langgraph.types import Command
 
 from config.constants import WEB_SEARCH_MAX_RESULTS, WEB_SEARCH_PER_URL_CHAR_CAP
-from tools._helpers import ok, err
+from tools._helpers import err, ok
 from tools.services.extract import extract_url_content
 from tools.services.tavily import search_legislation
 from utils.content.compressor import compress_text
