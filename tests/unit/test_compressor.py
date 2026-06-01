@@ -2,10 +2,8 @@
 
 from unittest.mock import patch
 
-
 from config.constants import COMPRESSION_RATE, MIN_CHARS_TO_COMPRESS
 from utils.content.compressor import compress_text
-
 
 SHORT_TEXT = "Short."  # well below MIN_CHARS_TO_COMPRESS
 LONG_TEXT = "x " * (MIN_CHARS_TO_COMPRESS + 100)  # guaranteed above the threshold

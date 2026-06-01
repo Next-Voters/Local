@@ -6,9 +6,7 @@ flows correctly through the composed node chain.
 
 from unittest.mock import MagicMock, patch
 
-
 from utils.schemas.pydantic import LegislationItem, WriterOutput
-
 
 # ---------------------------------------------------------------------------
 # Helpers

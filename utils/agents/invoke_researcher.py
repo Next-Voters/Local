@@ -6,7 +6,6 @@ from agents.researcher_agent import build_researcher_agent
 from config.constants import AGENT_RECURSION_LIMIT
 from utils.agents._helpers import reconcile_sources
 
-
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------

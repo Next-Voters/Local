@@ -2,14 +2,12 @@
 
 from unittest.mock import MagicMock, patch
 
-
 from pipelines.node.summary_writer import (
     _build_user_message,
     _normalize_source_urls,
     research_summary_writer,
 )
 from utils.schemas.pydantic import WriterOutput
-
 
 # ---------------------------------------------------------------------------
 # _normalize_source_urls
